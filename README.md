@@ -1,20 +1,17 @@
 ## WHMCS
-WHMCS Module for the [Pterodactyl Panel](https://github.com/pterodactyl/panel/).
+WHMCS Module for the [WISP Panel](https://wisp.gg/).
 
 ## Configuration support
-Please use the [Pterodactyl Discord](https://discord.gg/pterodactyl) for configuration related support instead of GitHub issues.
-
-## NOTE!
-This module requires the panel to be on version 0.7.3 and above, if you need one for lower than 0.7.x versions check out [death-droid's module](https://github.com/death-droid/Pterodactyl-WHMCS).
+Please use the [WISP Discord](https://wisp.gg/discord) for configuration related support instead of GitHub issues.
 
 ## Installation
 [Video Tutorial](https://www.youtube.com/watch?v=wURpRD9vfj4)  
 
 1. Download/Git clone this repository.  
-2. Move the ``pterodactyl/`` folder into ``<path to whmcs>/modules/servers/``.
+2. Move the ``wisp/`` folder into ``<path to whmcs>/modules/servers/``.
 3. Create API Credentials with these permissions: ![Image](https://owo.sh/fa1eee.png)
 4. In WHMCS navigate to Setup > Products/Services > Servers
-5. Create new server, fill the name with anything you want, hostname as the url to the panel either as an IP or domain. For example: ``123.123.123.123`` or ``my.pterodactyl.panel``
+5. Create new server, fill the name with anything you want, hostname as the url to the panel. For example: ``my-panel.panel.gg``
 6. Change Server Type to Pterodactyl, leave username empty, fill the password field with your generated API Key.
 7. Tick the "Secure" option if your panel is using SSL.
 8. Confirm that everything works by clicking the Test Connection button -> Save Changes.
@@ -24,9 +21,8 @@ This module requires the panel to be on version 0.7.3 and above, if you need one
 12. Click the Module Settings tab, choose for Module Name Pterodactyl and for the Server Group the group you created in step 8.
 13. Fill all non-optional fields, and you are good to go!
 
-## Migrating from death-droid's module
-Migrating is simple, delete death-droid's module and then upload this one instead of it.  
-Then do the steps 3-6 in Installation instructions above and resetup all products.  
+## Migrating from pterodactyl's module
+This module is backwards compatible and requires no changing other than switchinig to this module.
 
 ## Overwriting values through configurable options
 Overwriting values can be done through either Configurable Options or Custom Fields.  
@@ -50,4 +46,3 @@ dedicated_ip|Dedicated IP => Will be displayed as "Dedicated IP" but will work c
 ## Credits
 [Dane](https://github.com/DaneEveritt) and [everyone else](https://github.com/Pterodactyl/Panel/graphs/contributors) involved in development of the Pterodactyl Panel.  
 [death-droid](https://github.com/death-droid) for the original WHMCS module.  
-[Crident](https://crident.com) for providing me a dev environment to test the module on and the installation video.  

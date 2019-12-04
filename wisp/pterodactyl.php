@@ -3,7 +3,7 @@
 /**
 MIT License
 
-Copyright (c) 2018-2019 Stepan Fedotov <stepan@crident.com>
+Copyright (c) 2018-2019 Stepan Fedotov <stepan@wisp.gg>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -49,11 +49,11 @@ function pterodactyl_API(array $params, $endpoint, array $data = [], $method = "
     curl_setopt($curl, CURLOPT_USERAGENT, "Pterodactyl-WHMCS");
     curl_setopt($curl, CURLOPT_FOLLOWLOCATION, 1);
     curl_setopt($curl, CURLOPT_POSTREDIR, CURL_REDIR_POST_301);
-    curl_setopt($curl, CURLOPT_TIMEOUT, 5);
+    curl_setopt($curl, CURLOPT_TIMEOUT, 10);
 
     $headers = [
         "Authorization: Bearer " . $params['serverpassword'],
-        "Accept: Application/vnd.pterodactyl.v1+json",
+        "Accept: Application/vnd.wisp.v1+json",
     ];
 
     if($method === 'POST' || $method === 'PATCH') {
@@ -226,17 +226,6 @@ function pterodactyl_TestConnection(array $params) {
     ];
 }
 
-function pterodactyl_GenerateUsername($length = 8) {
-    $returnable = false;
-    while (!$returnable) {
-        $generated = str_random($length);
-        if (preg_match('/[A-Z]+[a-z]+[0-9]+/', $generated)) {
-            $returnable = true;
-        }
-    }
-    return $generated;
-}
-
 function pterodactyl_GetOption(array $params, $id, $default = NULL) {
     $options = pterodactyl_ConfigOptions();
 
@@ -273,16 +262,15 @@ function pterodactyl_CreateAccount(array $params) {
         $serverId = pterodactyl_GetServerID($params);
         if(isset($serverId)) throw new Exception('Failed to create server because it is already created.');
 
-        $userResult = pterodactyl_API($params, 'users/external/' . $params['clientsdetails']['id']);
+        $userResult = pterodactyl_API($params, 'users/external/' . $params['clientsdetails']['uuid']);
         if($userResult['status_code'] === 404) {
             $userResult = pterodactyl_API($params, 'users?search=' . urlencode($params['clientsdetails']['email']));
             if($userResult['meta']['pagination']['total'] === 0) {
                 $userResult = pterodactyl_API($params, 'users', [
-                    'username' => pterodactyl_GetOption($params, 'username', pterodactyl_GenerateUsername()),
                     'email' => $params['clientsdetails']['email'],
                     'first_name' => $params['clientsdetails']['firstname'],
                     'last_name' => $params['clientsdetails']['lastname'],
-                    'external_id' => $params['clientsdetails']['id'],
+                    'external_id' => $params['clientsdetails']['uuid'],
                 ], 'POST');
             } else {
                 foreach($userResult['data'] as $key => $value) {
@@ -320,7 +308,7 @@ function pterodactyl_CreateAccount(array $params) {
             else $environment[$var] = $default;
         }
 
-        $name = pterodactyl_GetOption($params, 'server_name', pterodactyl_GenerateUsername() . '_' . $params['serviceid']);
+        $name = pterodactyl_GetOption($params, 'server_name', 'My Server');
         $memory = pterodactyl_GetOption($params, 'memory');
         $swap = pterodactyl_GetOption($params, 'swap');
         $io = pterodactyl_GetOption($params, 'io');
