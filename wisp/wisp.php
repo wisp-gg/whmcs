@@ -46,7 +46,7 @@ function wisp_API(array $params, $endpoint, array $data = [], $method = "GET", $
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($curl, CURLOPT_CUSTOMREQUEST, $method);
     curl_setopt($curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_2);
-    curl_setopt($curl, CURLOPT_USERAGENT, "Pterodactyl-WHMCS");
+    curl_setopt($curl, CURLOPT_USERAGENT, "WISP-WHMCS");
     curl_setopt($curl, CURLOPT_FOLLOWLOCATION, 1);
     curl_setopt($curl, CURLOPT_POSTREDIR, CURL_REDIR_POST_301);
     curl_setopt($curl, CURLOPT_TIMEOUT, 10);
@@ -69,11 +69,11 @@ function wisp_API(array $params, $endpoint, array $data = [], $method = "GET", $
     $responseData = json_decode($response, true);
     $responseData['status_code'] = curl_getinfo($curl, CURLINFO_HTTP_CODE);
     
-    if($responseData['status_code'] === 0 && !$dontLog) logModuleCall("Pterodactyl-WHMCS", "CURL ERROR", curl_error($curl), "");
+    if($responseData['status_code'] === 0 && !$dontLog) logModuleCall("WISP-WHMCS", "CURL ERROR", curl_error($curl), "");
 
     curl_close($curl);
 
-    if(!$dontLog) logModuleCall("Pterodactyl-WHMCS", $method . " - " . $url,
+    if(!$dontLog) logModuleCall("WISP-WHMCS", $method . " - " . $url,
         isset($data) ? json_encode($data) : "",
         print_r($responseData, true));
 
@@ -81,7 +81,7 @@ function wisp_API(array $params, $endpoint, array $data = [], $method = "GET", $
 }
 
 function wisp_Error($func, $params, Exception $err) {
-    logModuleCall("Pterodactyl-WHMCS", $func, $params, $err->getMessage(), $err->getTraceAsString());
+    logModuleCall("WISP-WHMCS", $func, $params, $err->getMessage(), $err->getTraceAsString());
 }
 
 function wisp_MetaData() {
@@ -516,7 +516,7 @@ function wisp_ChangePackage(array $params) {
 }
 
 function wisp_LoginLink(array $params) {
-    if($params['moduletype'] !== 'pterodactyl') return;
+    if($params['moduletype'] !== 'wisp') return;
 
     try {
         $serverId = wisp_GetServerID($params);
@@ -524,14 +524,14 @@ function wisp_LoginLink(array $params) {
 
         $hostname = wisp_GetHostname($params);
         echo '[<a href="'.$hostname.'/admin/servers/view/' . $serverId . '" target="_blank">Go to Service</a>]';
-        echo '<p style="float: right">[<a href="https://github.com/TrixterTheTux/Pterodactyl-WHMCS/issues" target="_blank">Report A Bug</a>]</p>';
+        echo '<p style="float: right">[<a href="https://github.com/wisp-gg/whmcs/issues" target="_blank">Report A Bug</a>]</p>';
     } catch(Exception $err) {
         // Ignore
     }
 }
 
 function wisp_ClientArea(array $params) {
-    if($params['moduletype'] !== 'pterodactyl') return;
+    if($params['moduletype'] !== 'wisp') return;
 
     try {
         $serverData = wisp_GetServerID($params, true);

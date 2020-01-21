@@ -12,13 +12,13 @@ Please use the [WISP Discord](https://wisp.gg/discord) for configuration related
 3. Create API Credentials with these permissions: ![Image](https://owo.sh/fa1eee.png)
 4. In WHMCS navigate to Setup > Products/Services > Servers
 5. Create new server, fill the name with anything you want, hostname as the url to the panel. For example: ``my-panel.panel.gg``
-6. Change Server Type to Pterodactyl, leave username empty, fill the password field with your generated API Key.
+6. Change Server Type to WISP, leave username empty, fill the password field with your generated API Key.
 7. Tick the "Secure" option if your panel is using SSL.
 8. Confirm that everything works by clicking the Test Connection button -> Save Changes.
 9. Go back to the Servers screen and press Create New Group, name it anything you want and choose the created server and press the Add button, Save Changes.
 10. Navigate to Setup > Products/Services > Products/Services
 11. Create your desired product (and product group if you haven't already) with the type of Other and product name of anything -> Continue.
-12. Click the Module Settings tab, choose for Module Name Pterodactyl and for the Server Group the group you created in step 8.
+12. Click the Module Settings tab, choose for Module Name WISP and for the Server Group the group you created in step 8.
 13. Fill all non-optional fields, and you are good to go!
 
 ## Migrating from pterodactyl's module
