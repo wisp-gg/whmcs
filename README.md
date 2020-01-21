@@ -22,7 +22,7 @@ Please use the [WISP Discord](https://wisp.gg/discord) for configuration related
 13. Fill all non-optional fields, and you are good to go!
 
 ## Migrating from pterodactyl's module
-This module is backwards compatible and requires no changing other than switchinig to this module.
+This module is backwards compatible and requires no changing other than switching to this module.
 
 ## Overwriting values through configurable options
 Overwriting values can be done through either Configurable Options or Custom Fields.  
