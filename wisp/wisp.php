@@ -198,6 +198,12 @@ function wisp_ConfigOptions() {
             "Description" => "Should the Out Of Memory Killer be disabled (optional)",
             "Type" => "yesno",
         ],
+        "backup_megabytes_limit" => [
+            "FriendlyName" => "Backup Size Limit",
+            "Description" => "Amount in megabytes the server can use for backups (optional)",
+            "Type" => "text",
+            "Size" => 25,
+        ],
     ];
 }
 
@@ -333,6 +339,7 @@ function wisp_CreateAccount(array $params) {
         $databases = wisp_GetOption($params, 'databases');
         $allocations = wisp_GetOption($params, 'allocations');
         $oom_disabled = wisp_GetOption($params, 'oom_disabled') ? true : false;
+        $backup_megabytes_limit = wisp_GetOption($params, 'backup_megabytes_limit');
         $serverData = [
             'name' => $name,
             'user' => (int) $userId,
@@ -351,6 +358,7 @@ function wisp_CreateAccount(array $params) {
             'feature_limits' => [
                 'databases' => $databases ? (int) $databases : null,
                 'allocations' => (int) $allocations,
+                'backup_megabytes_limit' => (int) $backup_megabytes_limit,
             ],
             'deploy' => [
                 'locations' => [(int) $location_id],
@@ -468,6 +476,7 @@ function wisp_ChangePackage(array $params) {
         $databases = wisp_GetOption($params, 'databases');
         $allocations = wisp_GetOption($params, 'allocations');
         $oom_disabled = wisp_GetOption($params, 'oom_disabled') ? true : false;
+        $backup_megabytes_limit = wisp_GetOption($params, 'backup_megabytes_limit');
         $updateData = [
             'allocation' => $serverData['attributes']['allocation'],
             'memory' => (int) $memory,
@@ -479,6 +488,7 @@ function wisp_ChangePackage(array $params) {
             'feature_limits' => [
                 'databases' => (int) $databases,
                 'allocations' => (int) $allocations,
+                'backup_megabytes_limit' => (int) $backup_megabytes_limit,
             ],
         ];
 
