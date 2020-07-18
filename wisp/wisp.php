@@ -32,13 +32,14 @@ use Illuminate\Database\Capsule\Manager as Capsule;
 
 function wisp_GetHostname(array $params) {
     $hostname = $params['serverhostname'];
-	
+    if ($hostname === '') throw new Exception('Could not find the panel\'s hostname - did you configure server group for the product?');
+
     // For whatever reason, WHMCS converts some characters of the hostname to their literal meanings (- => dash, etc) in some cases
     foreach([
         'DOT' => '.',
         'DASH' => '-',
     ] as $from => $to) {
-	$hostname = str_replace($from, $to, $hostname);
+        $hostname = str_replace($from, $to, $hostname);
     }
 
     if(ip2long($hostname) !== false) $hostname = 'http://' . $hostname;
@@ -236,7 +237,7 @@ function wisp_TestConnection(array $params) {
     }
 
     return [
-        "success" => $err === "",
+        "success" => empty($err),
         "error" => $err,
     ];
 }
@@ -375,6 +376,12 @@ function wisp_CreateAccount(array $params) {
 
         if($server['status_code'] === 400) throw new Exception('Couldn\'t find any nodes satisfying the request.');
         if($server['status_code'] !== 201) throw new Exception('Failed to create the server, received the error code: ' . $server['status_code'] . '. Enable module debug log for more info.');
+
+        unset($params['password']);
+        Capsule::table('tblhosting')->where('id', $params['serviceid'])->update([
+            'username' => '',
+            'password' => '',
+        ]);
     } catch(Exception $err) {
         return $err->getMessage();
     }
@@ -454,7 +461,29 @@ function wisp_TerminateAccount(array $params) {
 
 function wisp_ChangePassword(array $params) {
     try {
-        throw new Exception('Not implemented, don\'t see need for this.');
+        if($params['password'] === '') throw new Exception('The password cannot be empty.');
+
+        $serverData = wisp_GetServerID($params, true);
+        if(!isset($serverData)) throw new Exception('Failed to change password because linked server doesn\'t exist.');
+
+        $userId = $serverData['attributes']['user'];
+        $userResult = wisp_API($params, 'users/' . $userId);
+        if($userResult['status_code'] !== 200) throw new Exception('Failed to retrieve user, received error code: ' . $userResult['status_code'] . '.');
+
+        $updateResult = wisp_API($params, 'users/' . $serverData['attributes']['user'], [
+            'email' => $userResult['attributes']['email'],
+            'first_name' => $userResult['attributes']['first_name'],
+            'last_name' => $userResult['attributes']['last_name'],
+
+            'password' => $params['password'],
+        ], 'PATCH');
+        if($updateResult['status_code'] !== 200) throw new Exception('Failed to change password, received error code: ' . $updateResult['status_code'] . '.');
+
+        unset($params['password']);
+        Capsule::table('tblhosting')->where('id', $params['serviceid'])->update([
+            'username' => '',
+            'password' => '',
+        ]);
     } catch(Exception $err) {
         return $err->getMessage();
     }
