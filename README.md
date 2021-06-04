@@ -55,7 +55,7 @@ The customer gets an email from the panel to setup their account (incl. password
 Currently, this isn't possible with this module but is planned.
 
 ## How to enable module debug log
-1. In WHMCS navigate to Utilities > Logs > Module Log
+1. In WHMCS 7 or below navigate to Utilities > Logs > Module Log. For WHMCS 8.x navigate to System Logs > Module Log in the left sidebar.
 2. Click the Enable Debug Logging button.
 3. Do the action that failed again and you will have required logs to debug the issue. All 404 errors can be ignored.
 4. Remember to Disable Debug Logging if you are using this in production, as it's not recommended to have it enabled.
