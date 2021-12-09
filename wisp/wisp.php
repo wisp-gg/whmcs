@@ -434,8 +434,9 @@ function wisp_CreateAccount(array $params) {
         
         $patchData = [
             'add_allocations' => $final_allocations['additional_allocation_ids'],
-        ]
+        ];
         logActivity("Adding additional allocations to server. ");
+        $serverId = wisp_GetServerID($params);
         $server = wisp_API($params, 'servers/' . $serverId . "/build", $patchData, 'PATCH');
     }
     
