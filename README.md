@@ -52,7 +52,12 @@ This can be caused from any of the following: Wrong location, not enough disk sp
 The customer gets an email from the panel to setup their account (incl. password) if they didn't have an account before. Otherwise they should be able to use their existing credentials.
 
 ## My game requires multiple ports allocated.
-Currently, this isn't possible with this module but is planned.
+Configure the "Additional Ports" option in the module settings.
+It expects a comma-separated list of ports as a numeric offset from the first available allocation.
+E.g: If you enter `1,2,4` and the first available port happens to be 25565, you'll get as additional allocations: (If they're available) 
+* 25566 (First Port + 1)
+* 25567 (First Port +2)
+* 25569 (First Port +4)
 
 ## How to enable module debug log
 1. In WHMCS 7 or below navigate to Utilities > Logs > Module Log. For WHMCS 8.x navigate to System Logs > Module Log in the left sidebar.
