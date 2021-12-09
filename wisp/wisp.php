@@ -293,11 +293,11 @@ function wisp_CreateAccount(array $params) {
     logActivity('Doing wisp_CreateAccount');
     try {
 
-	// Checking if the server ID already exists
+	    // Checking if the server ID already exists
         $serverId = wisp_GetServerID($params);
         if(isset($serverId)) throw new Exception('Failed to create server because it is already created.');
 	
-	// Create or fetch the user account
+	    // Create or fetch the user account
         $userResult = wisp_API($params, 'users/external/' . $params['clientsdetails']['uuid']);
         if($userResult['status_code'] === 404) {
             $userResult = wisp_API($params, 'users?search=' . urlencode($params['clientsdetails']['email']));
@@ -325,7 +325,7 @@ function wisp_CreateAccount(array $params) {
             throw new Exception('Failed to create user, received error code: ' . $userResult['status_code'] . '. Enable module debug log for more info.');
 	}
 
-	// Get egg data
+	    // Get egg data
         $nestId = wisp_GetOption($params, 'nest_id');
         $eggId = wisp_GetOption($params, 'egg_id');
 
@@ -345,8 +345,8 @@ function wisp_CreateAccount(array $params) {
             else $environment[$var] = $default;
         }
 
-	// Fetch given server parameters
-	$name = wisp_GetOption($params, 'server_name', 'My Server');
+	    // Fetch given server parameters
+	    $name = wisp_GetOption($params, 'server_name', 'My Server');
         $memory = wisp_GetOption($params, 'memory');
         $swap = wisp_GetOption($params, 'swap');
         $io = wisp_GetOption($params, 'io');
@@ -355,9 +355,9 @@ function wisp_CreateAccount(array $params) {
         $pack_id = wisp_GetOption($params, 'pack_id');
         $location_id = wisp_GetOption($params, 'location_id');
         $dedicated_ip = wisp_GetOption($params, 'dedicated_ip') ? true : false;
-	$port_range = wisp_GetOption($params, 'port_range');
-	$additional_ports = wisp_GetOption($params, 'additional_ports');
-	$additional_port_fail_mode = wisp_GetOption($params, 'additional_port_fail_mode');
+	    $port_range = wisp_GetOption($params, 'port_range');
+	    $additional_ports = wisp_GetOption($params, 'additional_ports');
+	    $additional_port_fail_mode = wisp_GetOption($params, 'additional_port_fail_mode');
         $port_range = isset($port_range) ? explode(',', $port_range) : [];
         $image = wisp_GetOption($params, 'image', $eggData['attributes']['docker_image']);
         $startup = wisp_GetOption($params, 'startup', $eggData['attributes']['startup']);
@@ -400,45 +400,54 @@ function wisp_CreateAccount(array $params) {
 	if(isset($additional_ports) && $additional_ports != '') {
 	    // Query all nodes for the given location until we find an available set of ports
 	    // Get the list of additional ports to add
-    	    $additional_port_list = explode(",", $additional_ports);
+        $additional_port_list = explode(",", $additional_ports);
 
-    	    // Get the server nodes for the specified location_id
-    	    $nodes = getNodes($params, $location_id);
-    	    // Get the port allocations for each node at this location and check if there's space for the additional ports
-    	    if(isset($nodes)) {
-        	foreach($nodes as $key => $node_id) {
-		    logActivity("Checking allocations for node ".$node_id);
-            	    $available_allocations = getAllocations($params,$node_id);
+        // Get the server nodes for the specified location_id
+        $nodes = getNodes($params, $location_id);
+        // Get the port allocations for each node at this location and check if there's space for the additional ports
+        if(isset($nodes)) {
+            foreach($nodes as $key => $node_id) {
+                logActivity("Checking allocations for node ".$node_id);
+                $available_allocations = getAllocations($params,$node_id);
     
-		    $final_allocations = findFreePorts($available_allocations, $additional_port_list);
+                $final_allocations = findFreePorts($available_allocations, $additional_port_list);
 
-		    if($final_allocations['status'] == true) {
-			logActivity("Successfully found an allocation. Setting primary allocation to ID " . $final_allocations['main_allocation_id']);
-			$serverData['allocation']['default'] = intval($final_allocations['main_allocation_id']);
-		    } else {
-		        logActivity("Failed to find an available allocation.");
-		    }
-		    // update serverData
-        	}
-    	    } else {
-        	logActivity("Unable to find any nodes at location ID ".$loc_id);
-    	    }
+                if($final_allocations['status'] == true) {
+                    logActivity("Successfully found an allocation. Setting primary allocation to ID " . $final_allocations['main_allocation_id']);
+                    $serverData['allocation']['default'] = intval($final_allocations['main_allocation_id']);
+                } else {
+                    logActivity("Failed to find an available allocation.");
+                }
+            }
+        } else {
+            logActivity("Unable to find any nodes at location ID ".$loc_id);
+        }
 	} else {
 	    // Continue with normal deployment
 	    $serverData['deploy']['port_range'] = $port_range;
 	}	
 
 	// Create the game server
-        $server = wisp_API($params, 'servers', $serverData, 'POST');
+    $server = wisp_API($params, 'servers', $serverData, 'POST');
 
-        if($server['status_code'] === 400) throw new Exception('Couldn\'t find any nodes satisfying the request.');
-        if($server['status_code'] !== 201) throw new Exception('Failed to create the server, received the error code: ' . $server['status_code'] . '. Enable module debug log for more info.');
+    if($final_allocations['status'] == true) {
+        
+        $patchData = [
+            'add_allocations' => $final_allocations['additional_allocation_ids'],
+        ]
+        logActivity("Adding additional allocations to server. ");
+        $server = wisp_API($params, 'servers/' . $serverId . "/build", $patchData, 'PATCH');
+    }
+    
 
-        unset($params['password']);
-        Capsule::table('tblhosting')->where('id', $params['serviceid'])->update([
-            'username' => '',
-            'password' => '',
-        ]);
+    if($server['status_code'] === 400) throw new Exception('Couldn\'t find any nodes satisfying the request.');
+    if($server['status_code'] !== 201) throw new Exception('Failed to create the server, received the error code: ' . $server['status_code'] . '. Enable module debug log for more info.');
+
+    unset($params['password']);
+    Capsule::table('tblhosting')->where('id', $params['serviceid'])->update([
+        'username' => '',
+        'password' => '',
+    ]);
     } catch(Exception $err) {
         return $err->getMessage();
     }
