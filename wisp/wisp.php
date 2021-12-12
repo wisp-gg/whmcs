@@ -78,7 +78,7 @@ function wisp_API(array $params, $endpoint, array $data = [], $method = "GET", $
     $response = curl_exec($curl);
     $responseData = json_decode($response, true);
     $responseData['status_code'] = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-    
+
     if($responseData['status_code'] === 0 && !$dontLog) logModuleCall("WISP-WHMCS", "CURL ERROR", curl_error($curl), "");
 
     curl_close($curl);
@@ -169,14 +169,14 @@ function wisp_ConfigOptions() {
             "Description" => "Port ranges seperated by comma to assign to the server (Example: 25565-25570,25580-25590) (optional)",
             "Type" => "text",
             "Size" => 25,
-    	],
-	"additional_ports" => [
+        ],
+        "additional_ports" => [
             "FriendlyName" => "Additional Ports",
             "Description" => "Additional ports as an offset from the first allocation - seperated by comma. Example: if the first assigned port is 25565 and you enter '1,2,4' then you'll get three additional ports 25565+1 (25566) 25565+2 (25567) and 25565+4 (25569) (optional)",
             "Type" => "text",
             "Size" => 25,
-    	],
-    	"additional_port_fail_mode" => [
+        ],
+        "additional_port_fail_mode" => [
             "FriendlyName" => "Additional Port Failure Mode",
             "Type" => "dropdown",
             "Options" => [
@@ -204,7 +204,7 @@ function wisp_ConfigOptions() {
             "Type" => "text",
             "Size" => 10,
         ],
-	    "server_name" => [
+            "server_name" => [
             "FriendlyName" => "Server Name",
             "Description" => "The name of the server as shown on the panel (optional)",
             "Type" => "text",
@@ -293,11 +293,11 @@ function wisp_CreateAccount(array $params) {
     logActivity('Doing wisp_CreateAccount');
     try {
 
-	    // Checking if the server ID already exists
+            // Checking if the server ID already exists
         $serverId = wisp_GetServerID($params);
         if(isset($serverId)) throw new Exception('Failed to create server because it is already created.');
-	
-	    // Create or fetch the user account
+
+            // Create or fetch the user account
         $userResult = wisp_API($params, 'users/external/' . $params['clientsdetails']['uuid']);
         if($userResult['status_code'] === 404) {
             $userResult = wisp_API($params, 'users?search=' . urlencode($params['clientsdetails']['email']));
@@ -323,9 +323,9 @@ function wisp_CreateAccount(array $params) {
             $userId = $userResult['attributes']['id'];
         } else {
             throw new Exception('Failed to create user, received error code: ' . $userResult['status_code'] . '. Enable module debug log for more info.');
-	}
+        }
 
-	    // Get egg data
+            // Get egg data
         $nestId = wisp_GetOption($params, 'nest_id');
         $eggId = wisp_GetOption($params, 'egg_id');
 
@@ -345,8 +345,8 @@ function wisp_CreateAccount(array $params) {
             else $environment[$var] = $default;
         }
 
-	    // Fetch given server parameters
-	    $name = wisp_GetOption($params, 'server_name', 'My Server');
+            // Fetch given server parameters
+            $name = wisp_GetOption($params, 'server_name', 'My Server');
         $memory = wisp_GetOption($params, 'memory');
         $swap = wisp_GetOption($params, 'swap');
         $io = wisp_GetOption($params, 'io');
@@ -355,9 +355,9 @@ function wisp_CreateAccount(array $params) {
         $pack_id = wisp_GetOption($params, 'pack_id');
         $location_id = wisp_GetOption($params, 'location_id');
         $dedicated_ip = wisp_GetOption($params, 'dedicated_ip') ? true : false;
-	    $port_range = wisp_GetOption($params, 'port_range');
-	    $additional_ports = wisp_GetOption($params, 'additional_ports');
-	    $additional_port_fail_mode = wisp_GetOption($params, 'additional_port_fail_mode');
+            $port_range = wisp_GetOption($params, 'port_range');
+            $additional_ports = wisp_GetOption($params, 'additional_ports');
+            $additional_port_fail_mode = wisp_GetOption($params, 'additional_port_fail_mode');
         $port_range = isset($port_range) ? explode(',', $port_range) : [];
         $image = wisp_GetOption($params, 'image', $eggData['attributes']['docker_image']);
         $startup = wisp_GetOption($params, 'startup', $eggData['attributes']['startup']);
@@ -396,10 +396,10 @@ function wisp_CreateAccount(array $params) {
         ];
         if(isset($pack_id)) $serverData['pack'] = (int) $pack_id;
 
-	// Check if additional ports have been set
-	if(isset($additional_ports) && $additional_ports != '') {
-	    // Query all nodes for the given location until we find an available set of ports
-	    // Get the list of additional ports to add
+        // Check if additional ports have been set
+        if(isset($additional_ports) && $additional_ports != '') {
+            // Query all nodes for the given location until we find an available set of ports
+            // Get the list of additional ports to add
         $additional_port_list = explode(",", $additional_ports);
 
         // Get the server nodes for the specified location_id
@@ -409,7 +409,7 @@ function wisp_CreateAccount(array $params) {
             foreach($nodes as $key => $node_id) {
                 logActivity("Checking allocations for node ".$node_id);
                 $available_allocations = getAllocations($params,$node_id);
-    
+
                 $final_allocations = findFreePorts($available_allocations, $additional_port_list);
 
                 if($final_allocations['status'] == true) {
@@ -422,27 +422,63 @@ function wisp_CreateAccount(array $params) {
         } else {
             logActivity("Unable to find any nodes at location ID ".$loc_id);
         }
-	} else {
-	    // Continue with normal deployment
-	    $serverData['deploy']['port_range'] = $port_range;
-	}	
+        } else {
+            // Continue with normal deployment
+            $serverData['deploy']['port_range'] = $port_range;
+        }
 
-	// Create the game server
-    $server = wisp_API($params, 'servers', $serverData, 'POST');
+        // Create the game server
+        $server = wisp_API($params, 'servers', $serverData, 'POST');
+        if($server['status_code'] === 400) throw new Exception('Couldn\'t find any nodes satisfying the request.');
+        if($server['status_code'] !== 201) throw new Exception('Failed to create the server, received the error code: ' . $server['status_code'] . '. Enable module debug log for more info.');
 
-    if($final_allocations['status'] == true) {
-        
+        // Get server ID
+        $serverId = wisp_GetServerID($params);
+        logActivity("Server ID is " . $serverId);
+        // Check the server status
+        $serverIsInstalled = false;
+        $timeoutCounter = 0;
+        logActivity('Logging install status next');
+        logActivity($serverStatus['attributes']['container']['installed']);
+        while($serverIsInstalled != true && $timeoutCounter <= 30) { // Hard coded timeout, can be tweaked here if more time is required due to slow internet connection etc..
+                logActivity('Container isn\'t installed yet. Waiting... x'.strval($timeoutCounter));
+                sleep(3);
+                $serverStatus = wisp_API($params, 'servers/' . $serverId);
+                $serverIsInstalled = $serverStatus['attributes']['container']['installed'];
+                $timeoutCounter ++;
+        }
+        $timeoutCounter = 0;
+
+        if($final_allocations['status'] == true) {
+
         $patchData = [
             'add_allocations' => $final_allocations['additional_allocation_ids'],
+            'allocation' => intval($final_allocations['main_allocation_id']),
+            'memory' => intval($server['attributes']['limits']['memory']),
+            'swap' => intval($server['attributes']['limits']['swap']),
+            'io' => intval($server['attributes']['limits']['io']),
+            'cpu' => intval($server['attributes']['limits']['cpu']),
+            'disk' => intval($server['attributes']['limits']['disk']),
+            'feature_limits' => [
+                'databases' => $databases ? (int) $databases : null,
+                'allocations' => intval($server['attributes']['feature_limits']['allocations']),
+                //'allocations' => 3,
+            ]
+
         ];
         logActivity("Adding additional allocations to server. ");
-        $serverId = wisp_GetServerID($params);
         $server = wisp_API($params, 'servers/' . $serverId . "/build", $patchData, 'PATCH');
     }
-    
+    // Due to some edge cases where the container dies immediately after creation and is re-started,
+    // may need to try again a couple of times before the daemon will finally accept the request.
+    while(($server['status_code'] !== 201 && $server['status_code'] !== 200) && $timeoutCounter < 5 ) {
+        $server = wisp_API($params, 'servers/' . $serverId . "/build", $patchData, 'PATCH');
+        $timeoutCounter ++;
+    }
+
 
     if($server['status_code'] === 400) throw new Exception('Couldn\'t find any nodes satisfying the request.');
-    if($server['status_code'] !== 201) throw new Exception('Failed to create the server, received the error code: ' . $server['status_code'] . '. Enable module debug log for more info.');
+    if($server['status_code'] !== 201 && $server['status_code'] !== 200) throw new Exception('Failed to create the server, received the error code: ' . $server['status_code'] . '. Enable module debug log for more info.');
 
     unset($params['password']);
     Capsule::table('tblhosting')->where('id', $params['serviceid'])->update([
@@ -767,16 +803,18 @@ function findFreePorts(array $available_allocations, array $port_offsets) {
     */
     // Iterate over available IP's
     foreach($available_allocations as $ip_addr => $ports) {
-	$result = Array();
-	$result['status'] = false;
+        $result = Array();
+        $result['status'] = false;
         $main_allocation_id = "";
-	$additional_allocation_ids = Array();
+        $main_allocation_port = "";
+        $additional_allocation_ids = Array();
 
         // Iterate over Ports
         logActivity("Checking IP: ".$ip_addr);
         //echo "Key: ".key($ports);
         foreach($ports as $port => $portDetails) {
-            $main_allocation_id = $port;
+                $main_allocation_id = $portDetails['id'];
+                $mail_allocation_port = $port;
             $found_all = true;
             foreach($port_offsets as $key => $port_offset) {
                 // check if port
@@ -786,24 +824,25 @@ function findFreePorts(array $available_allocations, array $port_offsets) {
                     $found_all = false;
                 } else {
                     logActivity("Stashing available port: ".$ports[$next_port]['id']);
-                    array_push($additional_allocation_ids, $ports[$next_port]['id']);
+                    array_push($additional_allocation_ids, strval($ports[$next_port]['id']));
                 }
             }
             if($found_all == true) {
                 logActivity("Found an available set of ports!");
                 logActivity("Main port allocation ID: ". $main_allocation_id);
-		logActivity("Additional port allocation ID's: ". print_r($additional_allocation_ids, true));
-		$result['main_allocation_id'] = $main_allocation_id;
-		$result['additional_allocation_ids'] = $additional_allocation_ids;
-		$result['status'] = true;
+                logActivity("Additional port allocation ID's: ". print_r($additional_allocation_ids, true));
+                $result['main_allocation_id'] = $main_allocation_id;
+                $result['main_allocatiion_port'] = $mail_allocation_port;
+                $result['additional_allocation_ids'] = $additional_allocation_ids;
+                $result['status'] = true;
                 return $result;
             } else {
                 // Reset values in array for next run
-                $additional_ports = array();
+                $additional_allocation_ids = array();
             }
         }
         // Raise an exception
-	logActivity("Failed to find available ports!");
-	return false;
+        logActivity("Failed to find available ports!");
+        return false;
     }
 }
