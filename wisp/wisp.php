@@ -385,6 +385,10 @@ function wisp_CreateAccount(array $params) {
                 'allocations' => (int) $allocations,
                 'backup_megabytes_limit' => (int) $backup_megabytes_limit,
             ],
+            /*'allocation' => [
+                'default' => $final_allocations['main_allocation_id'],
+                'additional' => $final_allocations['additional_allocation_ids'],
+            ],*/
             'deploy' => [
                 'locations' => [(int) $location_id],
                 'dedicated_ip' => $dedicated_ip,
@@ -414,7 +418,12 @@ function wisp_CreateAccount(array $params) {
 
                 if($final_allocations['status'] == true) {
                     logActivity("Successfully found an allocation. Setting primary allocation to ID " . $final_allocations['main_allocation_id']);
+                    logActivity("Successfully found additional allocations: " . $final_allocations['additional_allocation_ids']);
+                    foreach($final_allocations['additional_allocation_ids'] as $alloc_key => $alloc_id) {
+                        logActivity("Got additional alloc: " . $alloc_id);
+                    }
                     $serverData['allocation']['default'] = intval($final_allocations['main_allocation_id']);
+                    $serverData['allocation']['additional'] = $final_allocations['additional_allocation_ids'];
                 } else {
                     logActivity("Failed to find an available allocation.");
                 }
@@ -428,6 +437,7 @@ function wisp_CreateAccount(array $params) {
         }
 
         // Create the game server
+        logActivity("Creating the server ");
         $server = wisp_API($params, 'servers', $serverData, 'POST');
         if($server['status_code'] === 400) throw new Exception('Couldn\'t find any nodes satisfying the request.');
         if($server['status_code'] !== 201) throw new Exception('Failed to create the server, received the error code: ' . $server['status_code'] . '. Enable module debug log for more info.');
@@ -436,18 +446,18 @@ function wisp_CreateAccount(array $params) {
         $serverId = wisp_GetServerID($params);
         logActivity("Server ID is " . $serverId);
         // Check the server status
-        $serverIsInstalled = false;
-        $timeoutCounter = 0;
+        //$serverIsInstalled = false;
+        //$timeoutCounter = 0;
         logActivity('Logging install status next');
         logActivity($serverStatus['attributes']['container']['installed']);
-        while($serverIsInstalled != true && $timeoutCounter <= 30) { // Hard coded timeout, can be tweaked here if more time is required due to slow internet connection etc..
+        /*while($serverIsInstalled != true && $timeoutCounter <= 30) { // Hard coded timeout, can be tweaked here if more time is required due to slow internet connection etc..
                 logActivity('Container isn\'t installed yet. Waiting... x'.strval($timeoutCounter));
                 sleep(3);
                 $serverStatus = wisp_API($params, 'servers/' . $serverId);
                 $serverIsInstalled = $serverStatus['attributes']['container']['installed'];
                 $timeoutCounter ++;
         }
-        $timeoutCounter = 0;
+        $timeoutCounter = 0;*/
 
         if($final_allocations['status'] == true) {
 
@@ -466,15 +476,15 @@ function wisp_CreateAccount(array $params) {
             ]
 
         ];
-        logActivity("Adding additional allocations to server. ");
-        $server = wisp_API($params, 'servers/' . $serverId . "/build", $patchData, 'PATCH');
+        //logActivity("Adding additional allocations to server. ");
+        //$server = wisp_API($params, 'servers/' . $serverId . "/build", $patchData, 'PATCH');
     }
     // Due to some edge cases where the container dies immediately after creation and is re-started,
     // may need to try again a couple of times before the daemon will finally accept the request.
-    while(($server['status_code'] !== 201 && $server['status_code'] !== 200) && $timeoutCounter < 5 ) {
+    /*while(($server['status_code'] !== 201 && $server['status_code'] !== 200) && $timeoutCounter < 5 ) {
         $server = wisp_API($params, 'servers/' . $serverId . "/build", $patchData, 'PATCH');
         $timeoutCounter ++;
-    }
+    }*/
 
 
     if($server['status_code'] === 400) throw new Exception('Couldn\'t find any nodes satisfying the request.');
