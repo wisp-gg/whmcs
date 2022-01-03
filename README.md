@@ -9,7 +9,7 @@ Please use the [WISP Discord](https://wisp.gg/discord) for configuration related
 
 1. Download/Git clone this repository.  
 2. Move the ``wisp/`` folder into ``<path to whmcs>/modules/servers/``.
-3. Create API Credentials with these permissions: ![Image](https://owo.whats-th.is/fa1eee.png)
+3. Create API Credentials with these permissions: ![Image](https://i.imgur.com/nzo0u8C.png)
 4. In WHMCS navigate to Setup > Products/Services > Servers
 5. Create new server, fill the name with anything you want, hostname as the url to the panel. For example: ``my-panel.panel.gg``
 6. Change Server Type to WISP, leave username empty, fill the password field with your generated API Key.
@@ -58,6 +58,11 @@ E.g: If you enter `1,2,4` and the first available port happens to be 25565, you'
 * 25566 (First Port + 1)
 * 25567 (First Port +2)
 * 25569 (First Port +4)
+
+You'll also want to configure "Additional Port Failure Mode".
+This determines what the module should do if there are no allocations available on any of the defined nodes.
+* "Continue" - Continues creating the server but only with one allocation, whatever is available at the time. You'll need to manually go in after the server gets created to assign additional ports as required.
+* "Stop" - Stops the server creation and raises an error.
 
 ## How to enable module debug log
 1. In WHMCS 7 or below navigate to Utilities > Logs > Module Log. For WHMCS 8.x navigate to System Logs > Module Log in the left sidebar.

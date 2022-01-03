@@ -180,11 +180,11 @@ function wisp_ConfigOptions() {
             "FriendlyName" => "Additional Port Failure Mode",
             "Type" => "dropdown",
             "Options" => [
-                'stop' => 'Stop',
                 'continue' => 'Continue',
+                'stop' => 'Stop',
             ],
             "Description" => "Determines whether server creation will continue if none of your nodes are able to satisfy the additional port allocation",
-            "Default" => "stop",
+            "Default" => "continue",
         ],
         "startup" => [
             "FriendlyName" => "Startup",
@@ -292,12 +292,11 @@ function wisp_GetOption(array $params, $id, $default = NULL) {
 function wisp_CreateAccount(array $params) {
     logActivity('Doing wisp_CreateAccount');
     try {
-
-            // Checking if the server ID already exists
+        // Checking if the server ID already exists
         $serverId = wisp_GetServerID($params);
         if(isset($serverId)) throw new Exception('Failed to create server because it is already created.');
 
-            // Create or fetch the user account
+        // Create or fetch the user account
         $userResult = wisp_API($params, 'users/external/' . $params['clientsdetails']['uuid']);
         if($userResult['status_code'] === 404) {
             $userResult = wisp_API($params, 'users?search=' . urlencode($params['clientsdetails']['email']));
@@ -325,7 +324,7 @@ function wisp_CreateAccount(array $params) {
             throw new Exception('Failed to create user, received error code: ' . $userResult['status_code'] . '. Enable module debug log for more info.');
         }
 
-            // Get egg data
+        // Get egg data
         $nestId = wisp_GetOption($params, 'nest_id');
         $eggId = wisp_GetOption($params, 'egg_id');
 
@@ -345,8 +344,8 @@ function wisp_CreateAccount(array $params) {
             else $environment[$var] = $default;
         }
 
-            // Fetch given server parameters
-            $name = wisp_GetOption($params, 'server_name', 'My Server');
+        // Fetch given server parameters
+        $name = wisp_GetOption($params, 'server_name', 'My Server');
         $memory = wisp_GetOption($params, 'memory');
         $swap = wisp_GetOption($params, 'swap');
         $io = wisp_GetOption($params, 'io');
@@ -355,9 +354,9 @@ function wisp_CreateAccount(array $params) {
         $pack_id = wisp_GetOption($params, 'pack_id');
         $location_id = wisp_GetOption($params, 'location_id');
         $dedicated_ip = wisp_GetOption($params, 'dedicated_ip') ? true : false;
-            $port_range = wisp_GetOption($params, 'port_range');
-            $additional_ports = wisp_GetOption($params, 'additional_ports');
-            $additional_port_fail_mode = wisp_GetOption($params, 'additional_port_fail_mode');
+        $port_range = wisp_GetOption($params, 'port_range');
+        $additional_ports = wisp_GetOption($params, 'additional_ports');
+        $additional_port_fail_mode = wisp_GetOption($params, 'additional_port_fail_mode');
         $port_range = isset($port_range) ? explode(',', $port_range) : [];
         $image = wisp_GetOption($params, 'image', $eggData['attributes']['docker_image']);
         $startup = wisp_GetOption($params, 'startup', $eggData['attributes']['startup']);
@@ -385,10 +384,6 @@ function wisp_CreateAccount(array $params) {
                 'allocations' => (int) $allocations,
                 'backup_megabytes_limit' => (int) $backup_megabytes_limit,
             ],
-            /*'allocation' => [
-                'default' => $final_allocations['main_allocation_id'],
-                'additional' => $final_allocations['additional_allocation_ids'],
-            ],*/
             'deploy' => [
                 'locations' => [(int) $location_id],
                 'dedicated_ip' => $dedicated_ip,
@@ -402,35 +397,45 @@ function wisp_CreateAccount(array $params) {
 
         // Check if additional ports have been set
         if(isset($additional_ports) && $additional_ports != '') {
+        
             // Query all nodes for the given location until we find an available set of ports
             // Get the list of additional ports to add
-        $additional_port_list = explode(",", $additional_ports);
+            $additional_port_list = explode(",", $additional_ports);
 
-        // Get the server nodes for the specified location_id
-        $nodes = getNodes($params, $location_id);
-        // Get the port allocations for each node at this location and check if there's space for the additional ports
-        if(isset($nodes)) {
-            foreach($nodes as $key => $node_id) {
-                logActivity("Checking allocations for node ".$node_id);
-                $available_allocations = getAllocations($params,$node_id);
+            // Get the server nodes for the specified location_id
+            $nodes = getNodes($params, $location_id);
+            
+            // Get the port allocations for each node at this location and check if there's space for the additional ports
+            if(isset($nodes)) {
+                foreach($nodes as $key => $node_id) {
+                    logActivity("Checking allocations for node ".$node_id);
+                    $available_allocations = getAllocations($params,$node_id);
 
-                $final_allocations = findFreePorts($available_allocations, $additional_port_list);
+                    $final_allocations = findFreePorts($available_allocations, $additional_port_list);
 
-                if($final_allocations['status'] == true) {
-                    logActivity("Successfully found an allocation. Setting primary allocation to ID " . $final_allocations['main_allocation_id']);
-                    logActivity("Successfully found additional allocations: " . $final_allocations['additional_allocation_ids']);
-                    foreach($final_allocations['additional_allocation_ids'] as $alloc_key => $alloc_id) {
-                        logActivity("Got additional alloc: " . $alloc_id);
+                    if($final_allocations != false && $final_allocations['status'] == true) {
+                        logActivity("Successfully found an allocation. Setting primary allocation to ID " . $final_allocations['main_allocation_id']);
+                        logActivity("Successfully found additional allocations: " . $final_allocations['additional_allocation_ids']);
+                        foreach($final_allocations['additional_allocation_ids'] as $alloc_key => $alloc_id) {
+                            logActivity("Got additional alloc: " . $alloc_id);
+                        }
+                        $serverData['allocation']['default'] = intval($final_allocations['main_allocation_id']);
+                        $serverData['allocation']['additional'] = $final_allocations['additional_allocation_ids'];
+                    } else {
+                        logActivity("Failed to find an available allocation.");
+                        // Failure handling logic
+                        if($additional_port_fail_mode = "Stop") {
+                            throw new Exception('Couldn\'t find any available allocations to satisfy the request on node: ' . $node_id);
+                        } else {
+                            // Continue with normal deployment
+                            $serverData['deploy']['port_range'] = $port_range;
+                        }
                     }
-                    $serverData['allocation']['default'] = intval($final_allocations['main_allocation_id']);
-                    $serverData['allocation']['additional'] = $final_allocations['additional_allocation_ids'];
-                } else {
-                    logActivity("Failed to find an available allocation.");
                 }
+            } else {
+                logActivity("Unable to find any nodes at location ID ".$loc_id);
+                throw new Exception('Couldn\'t find any nodes satisfying the request at location: ' . $loc_id);
             }
-        } else {
-            logActivity("Unable to find any nodes at location ID ".$loc_id);
-        }
         } else {
             // Continue with normal deployment
             $serverData['deploy']['port_range'] = $port_range;
@@ -442,59 +447,15 @@ function wisp_CreateAccount(array $params) {
         if($server['status_code'] === 400) throw new Exception('Couldn\'t find any nodes satisfying the request.');
         if($server['status_code'] !== 201) throw new Exception('Failed to create the server, received the error code: ' . $server['status_code'] . '. Enable module debug log for more info.');
 
-        // Get server ID
-        $serverId = wisp_GetServerID($params);
-        logActivity("Server ID is " . $serverId);
-        // Check the server status
-        //$serverIsInstalled = false;
-        //$timeoutCounter = 0;
-        logActivity('Logging install status next');
-        logActivity($serverStatus['attributes']['container']['installed']);
-        /*while($serverIsInstalled != true && $timeoutCounter <= 30) { // Hard coded timeout, can be tweaked here if more time is required due to slow internet connection etc..
-                logActivity('Container isn\'t installed yet. Waiting... x'.strval($timeoutCounter));
-                sleep(3);
-                $serverStatus = wisp_API($params, 'servers/' . $serverId);
-                $serverIsInstalled = $serverStatus['attributes']['container']['installed'];
-                $timeoutCounter ++;
-        }
-        $timeoutCounter = 0;*/
+        // Catch API errors
+        if($server['status_code'] === 400) throw new Exception('Couldn\'t find any nodes satisfying the request.');
+        if($server['status_code'] !== 201 && $server['status_code'] !== 200) throw new Exception('Failed to create the server, received the error code: ' . $server['status_code'] . '. Enable module debug log for more info.');
 
-        if($final_allocations['status'] == true) {
-
-        $patchData = [
-            'add_allocations' => $final_allocations['additional_allocation_ids'],
-            'allocation' => intval($final_allocations['main_allocation_id']),
-            'memory' => intval($server['attributes']['limits']['memory']),
-            'swap' => intval($server['attributes']['limits']['swap']),
-            'io' => intval($server['attributes']['limits']['io']),
-            'cpu' => intval($server['attributes']['limits']['cpu']),
-            'disk' => intval($server['attributes']['limits']['disk']),
-            'feature_limits' => [
-                'databases' => $databases ? (int) $databases : null,
-                'allocations' => intval($server['attributes']['feature_limits']['allocations']),
-                //'allocations' => 3,
-            ]
-
-        ];
-        //logActivity("Adding additional allocations to server. ");
-        //$server = wisp_API($params, 'servers/' . $serverId . "/build", $patchData, 'PATCH');
-    }
-    // Due to some edge cases where the container dies immediately after creation and is re-started,
-    // may need to try again a couple of times before the daemon will finally accept the request.
-    /*while(($server['status_code'] !== 201 && $server['status_code'] !== 200) && $timeoutCounter < 5 ) {
-        $server = wisp_API($params, 'servers/' . $serverId . "/build", $patchData, 'PATCH');
-        $timeoutCounter ++;
-    }*/
-
-
-    if($server['status_code'] === 400) throw new Exception('Couldn\'t find any nodes satisfying the request.');
-    if($server['status_code'] !== 201 && $server['status_code'] !== 200) throw new Exception('Failed to create the server, received the error code: ' . $server['status_code'] . '. Enable module debug log for more info.');
-
-    unset($params['password']);
-    Capsule::table('tblhosting')->where('id', $params['serviceid'])->update([
-        'username' => '',
-        'password' => '',
-    ]);
+        unset($params['password']);
+        Capsule::table('tblhosting')->where('id', $params['serviceid'])->update([
+            'username' => '',
+            'password' => '',
+        ]);
     } catch(Exception $err) {
         return $err->getMessage();
     }
@@ -721,7 +682,9 @@ function getNodes(array $params, int $loc_id) {
     $nodes = wisp_API($params, 'nodes/');
     foreach($nodes['data'] as $key => $value) {
         $node_id = $value['attributes']['id'];
-        if($value['attributes']['location_id'] == $loc_id) {
+        if(!isset($loc_id) || $value['attributes']['location_id'] == $loc_id) {
+            array_push($filteredNodes, $node_id);
+        } else {
             array_push($filteredNodes, $node_id);
         }
     }
@@ -769,17 +732,16 @@ function getPaginatedData($params,$url) {
     */
 
     $results = array();
-    logActivity("API: Fetching page: ".$ports[$next_port]['id']);
+    // Fetch and parse first page of data
     $response = wisp_API($params, $url);
-    //array_push($results, $response['data']);
     foreach($response['data'] as $key => $value) {
         array_push($results, $value);
     }
     $current_page = $response['meta']['pagination']['current_page'];
     $total_pages = $response['meta']['pagination']['total_pages'];
+    // Fetch and parse any remaining pages
     while ($total_pages > $current_page) {
         $next_page = intval($current_page)+1;
-        logActivity("API: Fetching page: ".$next_page);
         $response = wisp_API($params, $url.'?page='.$next_page);
         foreach($response['data'] as $key => $value) {
             array_push($results, $value);
@@ -821,19 +783,17 @@ function findFreePorts(array $available_allocations, array $port_offsets) {
 
         // Iterate over Ports
         logActivity("Checking IP: ".$ip_addr);
-        //echo "Key: ".key($ports);
         foreach($ports as $port => $portDetails) {
-                $main_allocation_id = $portDetails['id'];
-                $mail_allocation_port = $port;
+            $main_allocation_id = $portDetails['id'];
+            $mail_allocation_port = $port;
             $found_all = true;
             foreach($port_offsets as $key => $port_offset) {
-                // check if port
                 $next_port = intval($port) + intval($port_offset);
                 if(!isset($ports[$next_port])) {
                     // Port is not available
                     $found_all = false;
                 } else {
-                    logActivity("Stashing available port: ".$ports[$next_port]['id']);
+                    // Port is available, add it to the array
                     array_push($additional_allocation_ids, strval($ports[$next_port]['id']));
                 }
             }
@@ -851,7 +811,8 @@ function findFreePorts(array $available_allocations, array $port_offsets) {
                 $additional_allocation_ids = array();
             }
         }
-        // Raise an exception
+
+        // Failed to find available set of ports based on requirements
         logActivity("Failed to find available ports!");
         return false;
     }
