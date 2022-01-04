@@ -172,7 +172,7 @@ function wisp_ConfigOptions() {
         ],
         "additional_ports" => [
             "FriendlyName" => "Additional Ports",
-            "Description" => "Additional ports as an offset from the first allocation - seperated by comma. Example: if the first assigned port is 25565 and you enter '1,2,4' then you'll get three additional ports 25565+1 (25566) 25565+2 (25567) and 25565+4 (25569). Note: Setting this will overwrite the port_range setting. (optional)",
+            "Description" => "Additional ports as an offset from the first allocation - seperated by comma. Example: if the first assigned port is 25565 and you enter '1,2,4' then you'll get three additional ports 25565+1 (25566) 25565+2 (25567) and 25565+4 (25569). Note: Setting this will ignore the port_range setting. (optional)",
             "Type" => "text",
             "Size" => 25,
         ],
