@@ -290,7 +290,6 @@ function wisp_GetOption(array $params, $id, $default = NULL) {
 }
 
 function wisp_CreateAccount(array $params) {
-    logActivity('Doing wisp_CreateAccount');
     try {
         // Checking if the server ID already exists
         $serverId = wisp_GetServerID($params);
@@ -672,7 +671,6 @@ function wisp_ClientArea(array $params) {
     }
 }
 
-
 /* Utility Functions */
 function getNodes(array $params, int $loc_id) {
     /*
@@ -709,11 +707,10 @@ function getAllocations(array $params, int $node_id){
             ['192.168.1.123'] => {
                 ['1234'] => {
                     ['id'] = 1234;
-                }
+                }z
             },
         ]
     */
-    echo "Getting Allocations \n";
     $available_allocations = array();
     $allocations = getPaginatedData($params,'nodes/'.$node_id.'/allocations');
     foreach($allocations as $key => $allocation) {
