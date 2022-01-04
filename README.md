@@ -24,6 +24,7 @@ Please use the [WISP Discord](https://wisp.gg/discord) for configuration related
 ## Credits
 [Dane](https://github.com/DaneEveritt) and [everyone else](https://github.com/Pterodactyl/Panel/graphs/contributors) involved in development of the Pterodactyl Panel.  
 [death-droid](https://github.com/death-droid) for the original WHMCS module.  
+[snags141](https://github.com/snags141/) for additional allocation support.
 
 # FAQ
 
@@ -40,7 +41,7 @@ Valid options: ``server_name, memory, swap, io, cpu, disk, nest_id, egg_id, pack
 This also works for any name of environment variable:  
 Player Slots => Will overwrite the environment variable named "Player Slots" to its value.  
 
-Useful trick: You can use the | seperator to change the display name of the variable like this:  
+Useful trick: You can use the | separator to change the display name of the variable like this:  
 dedicated_ip|Dedicated IP => Will be displayed as "Dedicated IP" but will work correctly.  
 
 [Sample configuration for configurable memory](https://owo.whats-th.is/85JwhVX.png)
