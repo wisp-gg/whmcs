@@ -172,7 +172,7 @@ function wisp_ConfigOptions() {
         ],
         "additional_ports" => [
             "FriendlyName" => "Additional Ports",
-            "Description" => "Additional ports as an offset from the first allocation - seperated by comma. Example: if the first assigned port is 25565 and you enter '1,2,4' then you'll get three additional ports 25565+1 (25566) 25565+2 (25567) and 25565+4 (25569) (optional)",
+            "Description" => "Additional ports as an offset from the first allocation - seperated by comma. Example: if the first assigned port is 25565 and you enter '1,2,4' then you'll get three additional ports 25565+1 (25566) 25565+2 (25567) and 25565+4 (25569). Note: Setting this will overwrite the port_range setting. (optional)",
             "Type" => "text",
             "Size" => 25,
         ],
@@ -406,29 +406,35 @@ function wisp_CreateAccount(array $params) {
             
             // Get the port allocations for each node at this location and check if there's space for the additional ports
             if(isset($nodes)) {
+                $alloc_success = false;
                 foreach($nodes as $key => $node_id) {
                     logActivity("Checking allocations for node ".$node_id);
+                    
+                    // Get all the available allocations for this node
                     $available_allocations = getAllocations($params,$node_id);
-
+                    
+                    // Taking our additional allocation requirements and available node allocations, find a combination of available ports.
                     $final_allocations = findFreePorts($available_allocations, $additional_port_list);
 
                     if($final_allocations != false && $final_allocations['status'] == true) {
+                        $alloc_success = true;
                         logActivity("Successfully found an allocation. Setting primary allocation to ID " . $final_allocations['main_allocation_id']);
                         logActivity("Successfully found additional allocations: " . $final_allocations['additional_allocation_ids']);
-                        foreach($final_allocations['additional_allocation_ids'] as $alloc_key => $alloc_id) {
-                            logActivity("Got additional alloc: " . $alloc_id);
-                        }
+                        
                         $serverData['allocation']['default'] = intval($final_allocations['main_allocation_id']);
                         $serverData['allocation']['additional'] = $final_allocations['additional_allocation_ids'];
+                        // We successfully found an available allocation, break and check no more nodes.
+                        break;
+                    }
+                    logActivity("Failed to find an available allocation on node: " . $node_id);
+                }
+                if(!$alloc_success) {
+                    // Failure handling logic
+                    if($additional_port_fail_mode = "Stop") {
+                        throw new Exception('Couldn\'t find any nodes to satisfy the requested allocations.');
                     } else {
-                        logActivity("Failed to find an available allocation.");
-                        // Failure handling logic
-                        if($additional_port_fail_mode = "Stop") {
-                            throw new Exception('Couldn\'t find any available allocations to satisfy the request on node: ' . $node_id);
-                        } else {
-                            // Continue with normal deployment
-                            $serverData['deploy']['port_range'] = $port_range;
-                        }
+                        // Continue with normal deployment
+                        $serverData['deploy']['port_range'] = $port_range;
                     }
                 }
             } else {

@@ -60,6 +60,8 @@ E.g: If you enter `1,2,4` and the first available port happens to be 25565, you'
 * 25567 (First Port +2)
 * 25569 (First Port +4)
 
+Note: Currently if this option is set, will override anything specified under "port_range" - Use one or the other.
+
 You'll also want to configure "Additional Port Failure Mode".
 This determines what the module should do if there are no allocations available on any of the defined nodes.
 * "Continue" - Continues creating the server but only with one allocation, whatever is available at the time. You'll need to manually go in after the server gets created to assign additional ports as required.
