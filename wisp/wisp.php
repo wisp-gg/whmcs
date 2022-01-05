@@ -455,8 +455,6 @@ function wisp_CreateAccount(array $params) {
 
         // Create the game server
         $server = wisp_API($params, 'servers', $serverData, 'POST');
-        if($server['status_code'] === 400) throw new Exception('Couldn\'t find any nodes satisfying the request.');
-        if($server['status_code'] !== 201) throw new Exception('Failed to create the server, received the error code: ' . $server['status_code'] . '. Enable module debug log for more info.');
 
         // Catch API errors
         if($server['status_code'] === 400) throw new Exception('Couldn\'t find any nodes satisfying the request.');
