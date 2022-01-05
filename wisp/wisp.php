@@ -408,7 +408,7 @@ function wisp_CreateAccount(array $params) {
             if(isset($nodes)) {
                 $alloc_success = false;
                 foreach($nodes as $key => $node_id) {
-                    logActivity("Checking allocations for node ".$node_id);
+                    logModuleCall("WISP-WHMCS", "Checking allocations for node: ".$node_id, "", "");
                     
                     // Get all the available allocations for this node
                     $available_allocations = getAllocations($params,$node_id);
@@ -418,8 +418,7 @@ function wisp_CreateAccount(array $params) {
 
                     if($final_allocations != false && $final_allocations['status'] == true) {
                         $alloc_success = true;
-                        logActivity("Successfully found an allocation. Setting primary allocation to ID " . $final_allocations['main_allocation_id']);
-                        logActivity("Successfully found additional allocations: " . $final_allocations['additional_allocation_ids']);
+                        logModuleCall("WISP-WHMCS", "Successfully found an allocation. Setting primary allocation to ID " . $final_allocations['main_allocation_id'], "", "");
                         
                         $serverData['allocation']['default'] = intval($final_allocations['main_allocation_id']);
                         $serverData['allocation']['additional'] = $final_allocations['additional_allocation_ids'];
@@ -440,7 +439,7 @@ function wisp_CreateAccount(array $params) {
                         // We successfully found an available allocation, break and check no more nodes.
                         break;
                     }
-                    logActivity("Failed to find an available allocation on node: " . $node_id);
+                    logModuleCall("WISP-WHMCS", "Failed to find an available allocation on node: ".$node_id, "", "");
                 }
                 if(!$alloc_success) {
                     // Failure handling logic
@@ -452,7 +451,7 @@ function wisp_CreateAccount(array $params) {
                     }
                 }
             } else {
-                logActivity("Unable to find any nodes at location ID ".$loc_id);
+                logModuleCall("WISP-WHMCS", "Unable to find any nodes at location ID: ".$loc_id, "", "");
                 throw new Exception('Couldn\'t find any nodes satisfying the request at location: ' . $loc_id);
             }
         } else {
@@ -461,7 +460,6 @@ function wisp_CreateAccount(array $params) {
         }
 
         // Create the game server
-        logActivity("Creating the server ");
         $server = wisp_API($params, 'servers', $serverData, 'POST');
         if($server['status_code'] === 400) throw new Exception('Couldn\'t find any nodes satisfying the request.');
         if($server['status_code'] !== 201) throw new Exception('Failed to create the server, received the error code: ' . $server['status_code'] . '. Enable module debug log for more info.');
@@ -797,9 +795,10 @@ function findFreePorts(array $available_allocations, array $port_offsets) {
         $main_allocation_id = "";
         $main_allocation_port = "";
         $additional_allocation_ids = Array();
+        $additional_allocation_ports = Array();
 
         // Iterate over Ports
-        logActivity("Checking IP: ".$ip_addr);
+        logModuleCall("WISP-WHMCS", "Checking IP: ".$ip_addr, "", "");
         foreach($ports as $port => $portDetails) {
             $main_allocation_id = $portDetails['id'];
             $main_allocation_port = $port;
@@ -812,25 +811,27 @@ function findFreePorts(array $available_allocations, array $port_offsets) {
                 } else {
                     // Port is available, add it to the array
                     array_push($additional_allocation_ids, strval($ports[$next_port]['id']));
+                    array_push($additional_allocation_ports, strval($ports[$next_port]));
                 }
             }
             if($found_all == true) {
-                logActivity("Found an available set of ports!");
-                logActivity("Main port allocation ID: ". $main_allocation_id);
-                logActivity("Additional port allocation ID's: ". print_r($additional_allocation_ids, true));
+                logModuleCall("WISP-WHMCS", "Found a game port allocation ID: ".$main_allocation_id, "", "");
+                logModuleCall("WISP-WHMCS", "Found additional allocation ID's: ".print_r($additional_allocation_ids, true), "", "");
                 $result['main_allocation_id'] = $main_allocation_id;
                 $result['main_allocation_port'] = $main_allocation_port;
                 $result['additional_allocation_ids'] = $additional_allocation_ids;
+                $result['additional_allocation_ports'] = $additional_allocation_ports;
                 $result['status'] = true;
                 return $result;
             } else {
                 // Reset values in array for next run
-                $additional_allocation_ids = array();
+                $additional_allocation_ids = Array();
+                $additional_allocation_ports = Array();
             }
         }
 
         // Failed to find available set of ports based on requirements
-        logActivity("Failed to find available ports!");
+        logModuleCall("WISP-WHMCS", "Failed to find available ports!", "", "");
         return false;
     }
 }
