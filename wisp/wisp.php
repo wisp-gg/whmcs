@@ -423,6 +423,20 @@ function wisp_CreateAccount(array $params) {
                         
                         $serverData['allocation']['default'] = intval($final_allocations['main_allocation_id']);
                         $serverData['allocation']['additional'] = $final_allocations['additional_allocation_ids'];
+
+                        // Update the start command - game port
+                        logActivity("Starting to update command: ".$startup);
+                        $startup = str_replace("{{game_port}}", $final_allocations['main_allocation_port'], $startup);
+                        logActivity("Replacing game_port with ". $final_allocations['main_allocation_port']);
+                        $idx = 1;
+                        // Update the start command - additional allocations
+                        foreach($final_allocations['additional_allocation_ports'] as $key => $port) {
+                            logActivity("Replacing additional_port_".$idx." with ". $port);
+                            $startup = str_replace("{{additional_port_".$idx."}}", $port, $startup);
+                            $idx++;
+                        }
+                        logActivity("The final startup command is: " . $startup);
+                        $serverData['startup'] = $startup;
                         // We successfully found an available allocation, break and check no more nodes.
                         break;
                     }
@@ -788,7 +802,7 @@ function findFreePorts(array $available_allocations, array $port_offsets) {
         logActivity("Checking IP: ".$ip_addr);
         foreach($ports as $port => $portDetails) {
             $main_allocation_id = $portDetails['id'];
-            $mail_allocation_port = $port;
+            $main_allocation_port = $port;
             $found_all = true;
             foreach($port_offsets as $key => $port_offset) {
                 $next_port = intval($port) + intval($port_offset);
@@ -805,7 +819,7 @@ function findFreePorts(array $available_allocations, array $port_offsets) {
                 logActivity("Main port allocation ID: ". $main_allocation_id);
                 logActivity("Additional port allocation ID's: ". print_r($additional_allocation_ids, true));
                 $result['main_allocation_id'] = $main_allocation_id;
-                $result['main_allocatiion_port'] = $mail_allocation_port;
+                $result['main_allocation_port'] = $main_allocation_port;
                 $result['additional_allocation_ids'] = $additional_allocation_ids;
                 $result['status'] = true;
                 return $result;
@@ -820,3 +834,4 @@ function findFreePorts(array $available_allocations, array $port_offsets) {
         return false;
     }
 }
+
