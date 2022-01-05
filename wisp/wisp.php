@@ -172,7 +172,7 @@ function wisp_ConfigOptions() {
         ],
         "additional_ports" => [
             "FriendlyName" => "Additional Ports",
-            "Description" => "Additional ports as an offset from the first allocation - seperated by comma. Example: if the first assigned port is 25565 and you enter '1,2,4' then you'll get three additional ports 25565+1 (25566) 25565+2 (25567) and 25565+4 (25569). Note: Setting this will ignore the port_range setting. (optional)",
+            "Description" => "Additional ports in a JSON string, each must have a key of either "NONE" or an egg parameter name to set. E.g. If you want a game port, game port+1 and RCON_PORT assigned to game port +4 then use: {\"NONE\":1, \"RCON_PORT\":4} (optional)",
             "Type" => "text",
             "Size" => 25,
         ],
@@ -794,7 +794,7 @@ function findFreePorts(array $available_allocations, string $port_offsets) {
         $pos = strpos($port_offsets, $none_string);
         $pos_idx ++;
     }
-    
+
     $port_offsets_array = json_decode($port_offsets, true);
 
     foreach($available_allocations as $ip_addr => $ports) {
