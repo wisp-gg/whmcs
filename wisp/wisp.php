@@ -172,7 +172,7 @@ function wisp_ConfigOptions() {
         ],
         "additional_ports" => [
             "FriendlyName" => "Additional Ports",
-            "Description" => "Additional ports in a JSON string, each must have a key of either "NONE" or an egg parameter name to set. E.g. If you want a game port, game port+1 and RCON_PORT assigned to game port +4 then use: {\"NONE\":1, \"RCON_PORT\":4} (optional)",
+            "Description" => "Additional ports to assign to the server. See the module readme for instructions: <a href=\"https://github.com/wisp-gg/whmcs/\" target=\"_blank\">View Readme</a> (optional)",
             "Type" => "text",
             "Size" => 25,
         ],
@@ -183,7 +183,7 @@ function wisp_ConfigOptions() {
                 'continue' => 'Continue',
                 'stop' => 'Stop',
             ],
-            "Description" => "Determines whether server creation will continue if none of your nodes are able to satisfy the additional port allocation",
+            "Description" => "Determines whether server creation will continue if none of your nodes are able to satisfy the additional port allocation. See the module readme for more information: <a href=\"https://github.com/wisp-gg/whmcs/\" target=\"_blank\">View Readme</a>",
             "Default" => "continue",
         ],
         "startup" => [
@@ -437,7 +437,7 @@ function wisp_CreateAccount(array $params) {
                 }
                 if(!$alloc_success) {
                     // Failure handling logic
-                    if($additional_port_fail_mode = "Stop") {
+                    if($additional_port_fail_mode == "stop") {
                         throw new Exception('Couldn\'t find any nodes to satisfy the requested allocations.');
                     } else {
                         // Continue with normal deployment
@@ -782,21 +782,10 @@ function findFreePorts(array $available_allocations, string $port_offsets) {
         $ports_found                The array of ports that were found available, based on the offsets
                                     the additional ports required.
     */
-    // Iterate over available IP's
-
-    // Decode json string of port offsets
-    $none_string = "\"NONE\"";
-    $pos_idx = 1;
-    $pos = strpos($port_offsets, $none_string);
-    while($pos != false) {
-        // Rename any "NONE" keys as we can't decode duplicates
-        $port_offsets = substr_replace($port_offsets, "\"NONE_".$pos_idx."\"", $pos, strlen($none_string));
-        $pos = strpos($port_offsets, $none_string);
-        $pos_idx ++;
-    }
-
+    
     $port_offsets_array = json_decode($port_offsets, true);
 
+    // Iterate over available IP's
     foreach($available_allocations as $ip_addr => $ports) {
         $result = Array();
         $result['status'] = false;
@@ -827,7 +816,7 @@ function findFreePorts(array $available_allocations, string $port_offsets) {
             if($found_all == true) {
                 logModuleCall("WISP-WHMCS", "Found a game port allocation ID: ".$main_allocation_id, "", "");
                 logModuleCall("WISP-WHMCS", "Found additional allocation ID's: ".print_r($additional_allocation_ids, true), "", "");
-                logModuleCall("WISP-WHMCS", "Found additional allocation Keys: ".print_r($additional_allocation_keys, true), "", "");
+                logModuleCall("WISP-WHMCS", "Found additional allocation Ports: ".print_r($additional_allocation_ports, true), "", "");
                 $result['main_allocation_id'] = $main_allocation_id;
                 $result['main_allocation_port'] = $main_allocation_port;
                 $result['additional_allocation_ids'] = $additional_allocation_ids;
