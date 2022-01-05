@@ -399,8 +399,8 @@ function wisp_CreateAccount(array $params) {
         
             // Query all nodes for the given location until we find an available set of ports
             // Get the list of additional ports to add
-            $additional_port_list = explode(",", $additional_ports);
-
+            //$additional_port_list = explode(",", $additional_ports);
+            $additional_port_list = $additional_ports;
             // Get the server nodes for the specified location_id
             $nodes = getNodes($params, $location_id);
             
@@ -422,21 +422,15 @@ function wisp_CreateAccount(array $params) {
                         
                         $serverData['allocation']['default'] = intval($final_allocations['main_allocation_id']);
                         $serverData['allocation']['additional'] = $final_allocations['additional_allocation_ids'];
-
-                        // Update the start command - game port
-                        logActivity("Starting to update command: ".$startup);
-                        $startup = str_replace("{{game_port}}", $final_allocations['main_allocation_port'], $startup);
-                        logActivity("Replacing game_port with ". $final_allocations['main_allocation_port']);
-                        $idx = 1;
-                        // Update the start command - additional allocations
+                        
+                        // Update the environment parameters - additional allocations
                         foreach($final_allocations['additional_allocation_ports'] as $key => $port) {
-                            logActivity("Replacing additional_port_".$idx." with ". $port);
-                            $startup = str_replace("{{additional_port_".$idx."}}", $port, $startup);
-                            $idx++;
+                            // If the key given in the config had a value of NONE, don't worry about adding it to the environment parameters.
+                            if(substr( $key, 0, 5 ) !== "NONE_") {
+                                $serverData['environment'][$key] = $port;
+                            }
                         }
-                        logActivity("The final startup command is: " . $startup);
-                        $serverData['startup'] = $startup;
-                        // We successfully found an available allocation, break and check no more nodes.
+                        // We successfully found and assigned an available allocation, break and check no more nodes.
                         break;
                     }
                     logModuleCall("WISP-WHMCS", "Failed to find an available allocation on node: ".$node_id, "", "");
@@ -767,7 +761,7 @@ function getPaginatedData($params,$url) {
     return $results;
 }
 
-function findFreePorts(array $available_allocations, array $port_offsets) {
+function findFreePorts(array $available_allocations, string $port_offsets) {
     /*
         This is the main logic that takes a list of available allocations
         and the required offsets and then finds the first available set.
@@ -781,7 +775,7 @@ function findFreePorts(array $available_allocations, array $port_offsets) {
                                     All other ports will be checked based on the
                                     required offset from the first.
 
-        $port_offsets               The list of offsets from the first port that
+        $port_offsets               The json string of offsets from the first port that
                                     are required for the server.
 
         Outputs:
@@ -789,6 +783,20 @@ function findFreePorts(array $available_allocations, array $port_offsets) {
                                     the additional ports required.
     */
     // Iterate over available IP's
+
+    // Decode json string of port offsets
+    $none_string = "\"NONE\"";
+    $pos_idx = 1;
+    $pos = strpos($port_offsets, $none_string);
+    while($pos != false) {
+        // Rename any "NONE" keys as we can't decode duplicates
+        $port_offsets = substr_replace($port_offsets, "\"NONE_".$pos_idx."\"", $pos, strlen($none_string));
+        $pos = strpos($port_offsets, $none_string);
+        $pos_idx ++;
+    }
+    
+    $port_offsets_array = json_decode($port_offsets, true);
+
     foreach($available_allocations as $ip_addr => $ports) {
         $result = Array();
         $result['status'] = false;
@@ -803,7 +811,7 @@ function findFreePorts(array $available_allocations, array $port_offsets) {
             $main_allocation_id = $portDetails['id'];
             $main_allocation_port = $port;
             $found_all = true;
-            foreach($port_offsets as $key => $port_offset) {
+            foreach($port_offsets_array as $key => $port_offset) {
                 $next_port = intval($port) + intval($port_offset);
                 if(!isset($ports[$next_port])) {
                     // Port is not available
@@ -811,12 +819,15 @@ function findFreePorts(array $available_allocations, array $port_offsets) {
                 } else {
                     // Port is available, add it to the array
                     array_push($additional_allocation_ids, strval($ports[$next_port]['id']));
-                    array_push($additional_allocation_ports, strval($ports[$next_port]));
+                    //array_push($additional_allocation_ports, strval($next_port));
+
+                    $additional_allocation_ports[$key] = $next_port;
                 }
             }
             if($found_all == true) {
                 logModuleCall("WISP-WHMCS", "Found a game port allocation ID: ".$main_allocation_id, "", "");
                 logModuleCall("WISP-WHMCS", "Found additional allocation ID's: ".print_r($additional_allocation_ids, true), "", "");
+                logModuleCall("WISP-WHMCS", "Found additional allocation Keys: ".print_r($additional_allocation_keys, true), "", "");
                 $result['main_allocation_id'] = $main_allocation_id;
                 $result['main_allocation_port'] = $main_allocation_port;
                 $result['additional_allocation_ids'] = $additional_allocation_ids;
