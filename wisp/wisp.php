@@ -571,7 +571,7 @@ function wisp_LoginLink(array $params) {
         if(!isset($serverId)) return;
 
         $hostname = wisp_GetHostname($params);
-        echo '[<a href="'.$hostname.'/admin/servers/view/' . $serverId . '" target="_blank">Go to Service</a>]';
+        echo '[<a href="'.$hostname.'/admin/servers/' . $serverId . '" target="_blank">Go to Service</a>]';
         echo '<p style="float: right">[<a href="https://github.com/wisp-gg/whmcs/issues" target="_blank">Report A Bug</a>]</p>';
     } catch(Exception $err) {
         // Ignore
