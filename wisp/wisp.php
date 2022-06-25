@@ -286,7 +286,7 @@ function wisp_CreateAccount(array $params) {
                     'email' => $params['clientsdetails']['email'],
                     //set first_name and last_name if empty
                     'first_name' => empty($params['clientsdetails']['firstname']) ? 'Unkown' : $params['clientsdetails']['firstname'],
-                    'last_name' =>empty($params['clientsdetails']['lastname']) ? 'User' : $params['clientsdetails']['lastname'],
+                    'last_name' => empty($params['clientsdetails']['lastname']) ? 'User' : $params['clientsdetails']['lastname'],
                     'external_id' => $params['clientsdetails']['uuid'],
                 ], 'POST');
             } else {
