@@ -284,8 +284,7 @@ function wisp_CreateAccount(array $params) {
             if($userResult['meta']['pagination']['total'] === 0) {
                 $userResult = wisp_API($params, 'users', [
                     'email' => $params['clientsdetails']['email'],
-                    //set first_name and last_name if empty
-                    'first_name' => empty($params['clientsdetails']['firstname']) ? 'Unkown' : $params['clientsdetails']['firstname'],
+                    'first_name' => empty($params['clientsdetails']['firstname']) ? 'Unknown' : $params['clientsdetails']['firstname'],
                     'last_name' => empty($params['clientsdetails']['lastname']) ? 'User' : $params['clientsdetails']['lastname'],
                     'external_id' => $params['clientsdetails']['uuid'],
                 ], 'POST');
