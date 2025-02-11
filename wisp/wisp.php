@@ -418,7 +418,7 @@ function wisp_CreateAccount(array $params)
 
             // Get the port allocations for each node at this location and check if there's space for the additional ports
             if (isset($nodes)) {
-                logModuleCall("WISP-WHMCS", "Got " . count($nodes) . " possibly eligible nodes for deployment");
+                logModuleCall("WISP-WHMCS", "Got " . count($nodes) . " possibly eligible nodes for deployment", "", "");
 
                 $alloc_success = false;
                 foreach ($nodes as $key => $node_id) {
