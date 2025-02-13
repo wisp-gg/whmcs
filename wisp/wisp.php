@@ -422,11 +422,11 @@ function wisp_CreateAccount(array $params)
                 logModuleCall("WISP-WHMCS", "Got " . count($nodes) . " possibly eligible nodes for deployment", "", "");
 
                 $alloc_success = false;
-                foreach ($nodes as $key => $node_id) {
-                    logModuleCall("WISP-WHMCS", "Checking allocations for node: " . $node_id, "", "");
+                foreach ($nodes as $node) {
+                    logModuleCall("WISP-WHMCS", "Checking allocations for node: {$node['id']} - {$node['name']}", "", "");
 
                     // Get all the available allocations for this node
-                    $available_allocations = getAllocations($params, $node_id);
+                    $available_allocations = getAllocations($params, $node['id']);
 
                     // Taking our additional allocation requirements and available node allocations, find a combination of available ports.
                     $final_allocations = findFreePorts($available_allocations, $additional_port_list, $serverData['deploy']);
@@ -448,7 +448,7 @@ function wisp_CreateAccount(array $params)
                         // We successfully found and assigned an available allocation, break and check no more nodes.
                         break;
                     }
-                    logModuleCall("WISP-WHMCS", "Failed to find an available allocation on node: " . $node_id, "", "");
+                    logModuleCall("WISP-WHMCS", "Failed to find an available allocation on node: {$node['id']} - {$node['name']}", "", "");
                 }
                 if (!$alloc_success) {
                     // Failure handling logic
