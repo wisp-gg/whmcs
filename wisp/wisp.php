@@ -414,7 +414,7 @@ function wisp_CreateAccount(array $params)
             //$additional_port_list = explode(",", $additional_ports);
             $additional_port_list = $additional_ports;
             // Get the server nodes for the specified location_id
-            $nodes = getPaginatedData($params, 'locations/' . $location_id . '/eligible-nodes');
+            $nodes = wisp_API($params, "locations/$location_id/eligible-nodes?cpu=$cpu&memory=$memory&disk=$disk");
 
             // Get the port allocations for each node at this location and check if there's space for the additional ports
             if (isset($nodes)) {
