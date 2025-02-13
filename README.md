@@ -10,7 +10,7 @@ Please use the [WISP Discord](https://wisp.gg/discord) for configuration related
 
 1. Download/Git clone this repository.
 2. Move the ``wisp/`` folder into ``<path to whmcs>/modules/servers/``.
-3. Create API Credentials with these permissions: ![Image](https://i.imgur.com/nzo0u8C.png)
+3. Create API Credentials with these permissions: ![Image](https://github.com/wisp-gg/whmcs/blob/master/.github/assets/permissions.png?raw=true)
 4. In WHMCS navigate to Setup > Products/Services > Servers
 5. Create new server, fill the name with anything you want, hostname as the url to the panel. For example: ``my-panel.panel.gg``
 6. Change Server Type to WISP, leave username empty, fill the password field with your generated API Key.
