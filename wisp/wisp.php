@@ -372,7 +372,7 @@ function wisp_CreateAccount(array $params)
         $startup = wisp_GetOption($params, 'startup', $eggData['attributes']['startup']);
         $databases = wisp_GetOption($params, 'databases');
         $allocations = wisp_GetOption($params, 'allocations');
-        $oom_disabled = wisp_GetOption($params, 'oom_disabled') == 'yes';
+        $oom_disabled = wisp_GetOption($params, 'oom_disabled') ? true : false;
         $backup_megabytes_limit = wisp_GetOption($params, 'backup_megabytes_limit');
         $serverData = [
             'name' => $name,
