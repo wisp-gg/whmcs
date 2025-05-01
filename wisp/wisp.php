@@ -207,6 +207,11 @@ function wisp_ConfigOptions()
             "Description" => "Should the Out Of Memory Killer be disabled (optional)",
             "Type" => "yesno",
         ],
+        "force_outgoing_ip" => [
+            "FriendlyName" => "Force Outgoing IP",
+            "Description" => "Forces the server to use the primary allocation's IP for outgoing connections by creating a separate Docker network. Required by some games to work properly with multiple IPs on the machine, such as Source Engine games (optional)",
+            "Type" => "yesno",
+        ],
         "backup_megabytes_limit" => [
             "FriendlyName" => "Backup Size Limit",
             "Description" => "Amount in megabytes the server can use for backups (optional)",
@@ -373,6 +378,7 @@ function wisp_CreateAccount(array $params)
         $databases = wisp_GetOption($params, 'databases');
         $allocations = wisp_GetOption($params, 'allocations');
         $oom_disabled = wisp_GetOption($params, 'oom_disabled') ? true : false;
+        $force_outgoing_ip = wisp_GetOption($params, 'force_outgoing_ip') ? true : false;
         $backup_megabytes_limit = wisp_GetOption($params, 'backup_megabytes_limit');
         $serverData = [
             'name' => $name,
@@ -382,6 +388,7 @@ function wisp_CreateAccount(array $params)
             'docker_image' => $image,
             'startup' => $startup,
             'oom_disabled' => $oom_disabled,
+            'force_outgoing_ip' => $force_outgoing_ip,
             'limits' => [
                 'memory' => (int) $memory,
                 'swap' => (int) $swap,
@@ -615,6 +622,7 @@ function wisp_ChangePackage(array $params)
         $databases = wisp_GetOption($params, 'databases');
         $allocations = wisp_GetOption($params, 'allocations');
         $oom_disabled = wisp_GetOption($params, 'oom_disabled') == 'yes';
+        $force_outgoing_ip = wisp_GetOption($params, 'force_outgoing_ip') ? true : false;
         $backup_megabytes_limit = wisp_GetOption($params, 'backup_megabytes_limit');
         $updateData = [
             'allocation' => $serverData['attributes']['allocation'],
@@ -624,6 +632,7 @@ function wisp_ChangePackage(array $params)
             'cpu' => (int) $cpu,
             'disk' => (int) $disk,
             'oom_disabled' => $oom_disabled,
+            'force_outgoing_ip' => $force_outgoing_ip,
             'feature_limits' => [
                 'databases' => (int) $databases,
                 'allocations' => (int) $allocations,
