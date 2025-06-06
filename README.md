@@ -55,34 +55,96 @@ The customer gets an email from the panel to setup their account (incl. password
 
 ## My game requires multiple ports allocated.
 Configure the "**Additional Ports**" option in the module settings.
-It expects a valid JSON string consisting of the parameter name or NONE, and a number representing a port as a numeric offset from the first available allocation.
-E.g: If you enter `{"1":"NONE", "2":"NONE", "4":"NONE"}` and the first available port happens to be 25565, you'll get as additional allocations:
-* 25566 (First Port + 1)
-* 25567 (First Port +2)
-* 25569 (First Port +4)
+It expects a valid JSON string with port allocations that can use either offset-based assignment or custom port ranges.
 
-(If they're available)
+**Basic Format:**
+`{"1":"PARAMETER_NAME", "2":"NONE"}` - Assigns ports as offsets from the main game port
 
-Note: I this option is set, it will override anything specified under "port_range" - Use one or the other, not both.
+**Advanced Format (Custom Ranges):**
+`{"1":"PARAMETER_NAME:3000-3100", "2":"SPECIFIC_PORT:27015"}` - Assigns from custom ranges or specific ports
 
-You'll also want to configure "**Additional Port Failure Mode**".
-This determines what the module should do if there are no allocations available on any of the defined nodes.
-* "Continue" - Continues creating the server but only with one allocation, whatever is available at the time. You'll need to manually go in after the server gets created to assign additional ports as required.
-* "Stop" - Stops the server creation and raises an error.
+**Example:** If you enter `{"1":"RCON_PORT", "2":"NONE", "4":"QUERY_PORT:27015"}` and the main game port is `25565`, you'll get:
+* Main Port: `25565`
+* RCON_PORT: `25566` (Main Port + 1)
+* Additional Port: `25567` (Main Port + 2, unassigned)
+* QUERY_PORT: `27015` (specific port, if available)
 
-## How to assign additional allocations to server parameters like RCON_PORT
-See the table below for "Additional Ports" example values.
-*These examples assume your WISP node has allocations available from 1000-2000.*
+**Important Notes:**
+* This option overrides anything specified under "port_range" - use one or the other, not both
+* Custom ranges allow more flexible port assignment beyond simple offsets
+* When multiple allocations use the same range, each gets a unique port automatically
 
-| Game | Required Ports  |Additional Ports Example  | Ports Assigned  |
-| ------------ | ------------ | ------------ | ------------ |
-| Rust | Game port and RCON port | `{"1":"RCON_PORT"}`  | Game Port: 1000, RCON_PORT: 1001|
-| Arma 3 | Game port, Game port +1 for Steam Query, Game port + 2 for Steam Port, and Game port +4 for BattleEye |  `{"1":"NONE", "2":"NONE", "4":"NONE"}` | Game Port: 1000, Additional Ports: 1001, 1002, 1004 |
-| Unturned | Game port, Game port +1 and Game port +2 | `{"1":"NONE", "2":"NONE"}` | Game Port: 1000, Additional Ports: 1001, 1002 |
-| Project Zomboid | Game Port, Steam port and an additional port for every player. Let's say we want 10 additional ports for 10 players. | `{"1":"STEAM_PORT", 2":"NONE", "3":"NONE", "4":"NONE", "5":"NONE", "6":"NONE", "7":"NONE", "8":"NONE", "9":"NONE", "10":"NONE", "11":"NONE"}` | Game Port: 1000, Steam Port: 1001, Additional Ports: 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010, 1011|
+**Additional Port Failure Mode** determines what happens if ports aren't available:
+* **"Continue"** - Creates server with available ports only, you manually assign missing ones later
+* **"Stop"** - Stops server creation and raises an error if any required ports are unavailable
 
-**What does "NONE" mean?**
-"NONE" means you want to assign the additional port to the server, but it doesn't need to be assigned to a server parameter. If instead you want to add a +1 port and assign it to the parameter "RCON_PORT" then you'd use `{"1":"RCON_PORT"}` for example.
+For detailed examples and advanced usage, see the **# Additional Port Allocations** section below.
+
+# Additional Port Allocations
+
+## How to assign additional allocations to server parameters
+
+The Additional Ports feature allows you to assign specific ports to server environment variables and supports both offset-based allocation and custom port ranges.
+
+*These are just example allocations. You can use any port you wish, simply ensure you have them assigned to your WISP node.*
+
+### Basic Format
+```json
+{"offset":"PARAMETER_NAME"}
+```
+
+### Advanced Format with Custom Ranges
+```json
+{"offset":"PARAMETER_NAME:PORT_RANGE"}
+```
+
+## Examples
+
+| Game | Required Ports | Additional Ports Example | Ports Assigned |
+|------|----------------|-------------------------|----------------|
+| **Rust** | Game port and RCON port | `{"1":"RCON_PORT"}` | Game Port: 1000, RCON_PORT: 1001 |
+| **Arma 3** | Game port, Steam Query (+1), Steam Port (+2), BattleEye (+4) | `{"1":"NONE", "2":"NONE", "4":"NONE"}` | Game Port: `1000`, Additional Ports: `1001, 1002, 1004` |
+| **Unturned** | Game port, Game port +1 and Game port +2 | `{"1":"NONE", "2":"NONE"}` | Game Port: `1000`, Additional Ports: `1001, 1002` |
+| **Project Zomboid** | Game Port and Steam port | `{"1":"STEAM_PORT"}` | Game Port: `1000`, Steam Port: `1001` |
+
+## Advanced Custom Range Examples
+
+| Use Case | Additional Ports Example                                  | Description                                         |
+|----------|-----------------------------------------------------------|-----------------------------------------------------|
+| **Dedicated RCON Range** | `{"1":"RCON_PORT:3000-3100"}`                             | Assigns RCON_PORT from a range of `3000-3100`         |
+| **Specific Query Port** | `{"1":"QUERY_PORT:27015"}`                                | Assigns QUERY_PORT specifically to port `27015`       |
+| **Multiple Custom Ranges** | `{"1":"RCON_PORT:3000-3100", "2":"ADMIN_PORT:4000-4100"}` | RCON from `3000-3100`, ADMIN from `4000-4100`           |
+| **Mixed Allocation** | `{"1":"RCON_PORT", "2":"QUERY_PORT:6900", "3":"NONE"}`    | RCON at game+1, QUERY at `6900`, additional at `game+3` |
+
+## Format Explanations
+
+### Basic Offset Format
+- `{"1":"RCON_PORT"}` - Assigns main `game port + 1` to environment variable `RCON_PORT`
+- `{"1":"NONE"}` - Allocates main `game port + 1` but doesn't assign to any environment variable
+
+### Custom Range Format
+- `{"1":"RCON_PORT:3000-3100"}` - Assigns first available port from range `3000-3100` to `RCON_PORT`
+- `{"1":"QUERY_PORT:27015"}` - Assigns specific port `27015` to `QUERY_PORT` (if available)
+
+### Multiple Ranges
+When using the same range multiple times, the system automatically assigns different ports:
+```json
+{"1":"PORT_A:5000-5100", "2":"PORT_B:5000-5100"}
+```
+- `PORT_A` gets `5000`, `PORT_B` gets `5001` (or next available in range)
+
+## Important Notes
+
+1. **"NONE" Parameter**: Use `"NONE"` when you need to allocate a port but don't want it assigned to any environment variable
+2. **Range Conflicts**: If multiple allocations use the same range, each gets a unique port from that range
+3. **Fallback Behavior**: If custom ranges are unavailable, the system respects your `"Additional Port Failure Mode"` setting
+4. **JSON Format**: Always use valid JSON format with double quotes around keys and values
+
+## Troubleshooting
+
+- **Server creation fails**: Check that your JSON format is valid and ranges have available ports
+- **Duplicate ports assigned**: Ensure you're using the updated module version that prevents duplicates
+- **Range not working**: Verify the port range exists and is available on your WISP node
 
 ## How to enable module debug log
 1. In WHMCS 7 or below navigate to Utilities > Logs > Module Log. For WHMCS 8.x navigate to System Logs > Module Log in the left sidebar.
