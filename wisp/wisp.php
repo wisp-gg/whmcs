@@ -839,7 +839,6 @@ function findFreePorts(array $available_allocations, string $port_offsets, $depl
     $port_offsets_array = json_decode($port_offsets, true);
 
     // Basic error checking for invalid json
-    // TODO: add better error checking in general for everything else
     if ($port_offsets_array === null && json_last_error() !== JSON_ERROR_NONE) {
         logModuleCall("WISP-WHMCS", "findFreePorts - JSON Decode Error", json_last_error_msg(), $port_offsets);
         return false;
@@ -869,34 +868,49 @@ function findFreePorts(array $available_allocations, string $port_offsets, $depl
         $additional_allocation_ids = array();
         $additional_allocation_ports = array();
 
-        // Handle default port range filtering
+        // Handle port range filtering properly for ALL ports (including primary port selection)
         if (!empty($deploy["port_range"])) {
-            $deploy["port_range"] = json_encode($deploy["port_range"]);
-            //converts port_range string to object filled with int
-            $portrange = [];
-            array_push($portrange, intval(ltrim(strstr($deploy["port_range"], '-', true), '["')));
-            array_push($portrange, intval(ltrim(strstr($deploy["port_range"], '-'), '-')));
-
-            for ($i = $portrange[0] + 1; $i < $portrange[1]; $i++) {
-                array_push($portrange, $i);
-            }
-            //no need to sort but doing it to make it easier for possible future features
-            sort($portrange);
-            foreach ($ports as $port => $portDetails) {
-                json_decode($port);
-                if (!in_array($port, $portrange)) {
-                    unset($ports[$port]);
+            logModuleCall("WISP-WHMCS", "Applying port range filter", print_r($deploy["port_range"], true), "");
+            
+            // Create array of allowed ports from port_range
+            $allowed_ports = array();
+            foreach ($deploy["port_range"] as $range) {
+                if (strpos($range, '-') !== false) {
+                    // Handle range format like "14000-14999"
+                    $range_parts = explode('-', $range);
+                    $start_port = intval($range_parts[0]);
+                    $end_port = intval($range_parts[1]);
+                    for ($i = $start_port; $i <= $end_port; $i++) {
+                        $allowed_ports[] = $i;
+                    }
+                } else {
+                    // Handle single port
+                    $allowed_ports[] = intval($range);
                 }
             }
+            
+            // Filter available ports to only include those in the allowed range
+            $filtered_ports = array();
+            foreach ($ports as $port => $portDetails) {
+                if (in_array(intval($port), $allowed_ports)) {
+                    $filtered_ports[$port] = $portDetails;
+                }
+            }
+            $ports = $filtered_ports;
+            
+            logModuleCall("WISP-WHMCS", "Filtered ports for IP " . $ip_addr, print_r(array_keys($ports), true), "");
         }
 
-        // Iterate over Ports for main allocation
+        // Iterate over Ports for main allocation (now properly filtered by port range)
         logModuleCall("WISP-WHMCS", "Checking IP: " . $ip_addr, "", "");
         foreach ($ports as $port => $portDetails) {
             $main_allocation_id = $portDetails['id'];
             $main_allocation_port = $port;
             $found_all = true;
             $used_ports = array(); // Track ports used in this allocation attempt
+            
+            // Add the main port to used_ports to prevent conflicts
+            $used_ports[] = intval($port);
 
             foreach ($parsed_offsets as $port_offset => $config) {
                 $parameter_name = $config['parameter_name'];
@@ -918,13 +932,13 @@ function findFreePorts(array $available_allocations, string $port_offsets, $depl
                 } else {
                     // Use default logic with offset from main port
                     $next_port = intval($port) + intval($port_offset);
-                    if (!isset($ports[$next_port]) || in_array($next_port, $used_ports)) {
+                    if (!isset($available_allocations[$ip_addr][$next_port]) || in_array($next_port, $used_ports)) {
                         // Port is not available or already used in this allocation
                         $found_all = false;
                         break;
                     } else {
                         // Port is available, add it to the array
-                        array_push($additional_allocation_ids, strval($ports[$next_port]['id']));
+                        array_push($additional_allocation_ids, strval($available_allocations[$ip_addr][$next_port]['id']));
                         $additional_allocation_ports[$parameter_name] = $next_port;
                         $used_ports[] = $next_port; // Mark this port as used
                     }
