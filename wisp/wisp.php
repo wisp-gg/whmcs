@@ -218,12 +218,6 @@ function wisp_ConfigOptions()
             "Type" => "text",
             "Size" => 25,
         ],
-        "backup_count_limit" => [
-            "FriendlyName" => "Backup Count Limit",
-            "Description" => "Amount of backups the server can create (optional)",
-            "Type" => "text",
-            "Size" => 25,
-        ],
         "additional_ports" => [
             "FriendlyName" => "Additional Ports",
             "Description" => "Additional ports to assign to the server. See the module readme for instructions: <a href=\"https://github.com/wisp-gg/whmcs/\" target=\"_blank\">View Readme</a> (optional)",
@@ -239,6 +233,12 @@ function wisp_ConfigOptions()
             ],
             "Description" => "Determines whether server creation will continue if none of your nodes are able to satisfy the additional port allocation. See the module readme for more information: <a href=\"https://github.com/wisp-gg/whmcs/\" target=\"_blank\">View Readme</a>",
             "Default" => "continue",
+        ],
+        "backup_count_limit" => [
+            "FriendlyName" => "Backup Count Limit",
+            "Description" => "Amount of backups the server can create (optional)",
+            "Type" => "text",
+            "Size" => 25,
         ],
     ];
 }
