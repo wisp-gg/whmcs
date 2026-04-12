@@ -218,6 +218,12 @@ function wisp_ConfigOptions()
             "Type" => "text",
             "Size" => 25,
         ],
+        "backup_count_limit" => [
+            "FriendlyName" => "Backup Count Limit",
+            "Description" => "Amount of backups the server can create (optional)",
+            "Type" => "text",
+            "Size" => 25,
+        ],
         "additional_ports" => [
             "FriendlyName" => "Additional Ports",
             "Description" => "Additional ports to assign to the server. See the module readme for instructions: <a href=\"https://github.com/wisp-gg/whmcs/\" target=\"_blank\">View Readme</a> (optional)",
@@ -380,6 +386,7 @@ function wisp_CreateAccount(array $params)
         $oom_disabled = wisp_GetOption($params, 'oom_disabled') ? true : false;
         $force_outgoing_ip = wisp_GetOption($params, 'force_outgoing_ip') ? true : false;
         $backup_megabytes_limit = wisp_GetOption($params, 'backup_megabytes_limit');
+        $backup_count_limit = wisp_GetOption($params, 'backup_count_limit');
         $serverData = [
             'name' => $name,
             'user' => (int) $userId,
@@ -400,6 +407,7 @@ function wisp_CreateAccount(array $params)
                 'databases' => $databases ? (int) $databases : null,
                 'allocations' => (int) $allocations,
                 'backup_megabytes_limit' => (int) $backup_megabytes_limit,
+                'backup_count_limit' => (int) $backup_count_limit,
             ],
             'deploy' => [
                 'locations' => [(int) $location_id],
@@ -624,6 +632,7 @@ function wisp_ChangePackage(array $params)
         $oom_disabled = wisp_GetOption($params, 'oom_disabled') == 'yes';
         $force_outgoing_ip = wisp_GetOption($params, 'force_outgoing_ip') ? true : false;
         $backup_megabytes_limit = wisp_GetOption($params, 'backup_megabytes_limit');
+        $backup_count_limit = wisp_GetOption($params, 'backup_count_limit');
         $updateData = [
             'allocation' => $serverData['attributes']['allocation'],
             'memory' => (int) $memory,
@@ -637,6 +646,7 @@ function wisp_ChangePackage(array $params)
                 'databases' => (int) $databases,
                 'allocations' => (int) $allocations,
                 'backup_megabytes_limit' => (int) $backup_megabytes_limit,
+                'backup_count_limit' => (int) $backup_count_limit,
             ],
         ];
 
