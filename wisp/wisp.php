@@ -407,7 +407,7 @@ function wisp_CreateAccount(array $params)
                 'databases' => $databases ? (int) $databases : null,
                 'allocations' => (int) $allocations,
                 'backup_megabytes_limit' => (int) $backup_megabytes_limit,
-                'backup_count_limit' => (int) $backup_count_limit,
+                'backup_count_limit' => $backup_count_limit !== '' && $backup_count_limit !== null ? (int) $backup_count_limit : null,
             ],
             'deploy' => [
                 'locations' => [(int) $location_id],
@@ -646,7 +646,7 @@ function wisp_ChangePackage(array $params)
                 'databases' => (int) $databases,
                 'allocations' => (int) $allocations,
                 'backup_megabytes_limit' => (int) $backup_megabytes_limit,
-                'backup_count_limit' => (int) $backup_count_limit,
+                'backup_count_limit' => $backup_count_limit !== '' && $backup_count_limit !== null ? (int) $backup_count_limit : null,
             ],
         ];
 
