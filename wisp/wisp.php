@@ -100,6 +100,28 @@ function wisp_Error($func, $params, Exception $err)
     logModuleCall("WISP-WHMCS", $func, $params, $err->getMessage(), $err->getTraceAsString());
 }
 
+/**
+ * Normalizes a WISP resource ID for use in API payloads.
+ *
+ * Newer WISP panels return string-based, prefixed resource IDs (e.g.
+ * "user_01kt...", "node_01kt...", "alloc_01kt..."), while legacy panels
+ * return plain integers. Casting a string ID to int yields 0 and breaks
+ * provisioning, so we only coerce values that are purely numeric and pass
+ * everything else through untouched.
+ */
+function wisp_NormalizeId($id)
+{
+    if (is_int($id)) {
+        return $id;
+    }
+
+    if (is_string($id) && ctype_digit($id)) {
+        return (int) $id;
+    }
+
+    return $id;
+}
+
 function wisp_MetaData()
 {
     return [
@@ -389,9 +411,9 @@ function wisp_CreateAccount(array $params)
         $backup_count_limit = wisp_GetOption($params, 'backup_count_limit');
         $serverData = [
             'name' => $name,
-            'user' => (int) $userId,
-            'nest' => (int) $nestId,
-            'egg' => (int) $eggId,
+            'user' => wisp_NormalizeId($userId),
+            'nest' => wisp_NormalizeId($nestId),
+            'egg' => wisp_NormalizeId($eggId),
             'docker_image' => $image,
             'startup' => $startup,
             'oom_disabled' => $oom_disabled,
@@ -410,7 +432,7 @@ function wisp_CreateAccount(array $params)
                 'backup_count_limit' => $backup_count_limit !== '' && $backup_count_limit !== null ? (int) $backup_count_limit : null,
             ],
             'deploy' => [
-                'locations' => [(int) $location_id],
+                'locations' => [wisp_NormalizeId($location_id)],
                 'dedicated_ip' => $dedicated_ip,
                 'port_range' => $port_range,
             ],
@@ -418,7 +440,7 @@ function wisp_CreateAccount(array $params)
             'start_on_completion' => true,
             'external_id' => (string) $params['serviceid'],
         ];
-        if (isset($pack_id)) $serverData['pack'] = (int) $pack_id;
+        if (isset($pack_id)) $serverData['pack'] = wisp_NormalizeId($pack_id);
 
         // Check if additional ports have been set
         if (isset($additional_ports) && $additional_ports != '') {
@@ -449,7 +471,7 @@ function wisp_CreateAccount(array $params)
                         $alloc_success = true;
                         logModuleCall("WISP-WHMCS", "Successfully found an allocation. Setting primary allocation to ID " . $final_allocations['main_allocation_id'], "", "");
                         unset($serverData['deploy']);
-                        $serverData['allocation']['default'] = intval($final_allocations['main_allocation_id']);
+                        $serverData['allocation']['default'] = wisp_NormalizeId($final_allocations['main_allocation_id']);
                         $serverData['allocation']['additional'] = $final_allocations['additional_allocation_ids'];
 
                         // Update the environment parameters - additional allocations
@@ -680,8 +702,8 @@ function wisp_ChangePackage(array $params)
         $updateData = [
             'environment' => $environment,
             'startup' => $startup,
-            'egg' => (int) $eggId,
-            'pack' => (int) $pack_id,
+            'egg' => wisp_NormalizeId($eggId),
+            'pack' => wisp_NormalizeId($pack_id),
             'image' => $image,
             'skip_scripts' => false,
         ];
@@ -753,7 +775,7 @@ function wisp_ClientArea(array $params)
  *     ],
  * ]
  */
-function getAllocations(array $params, int $node_id)
+function getAllocations(array $params, $node_id)
 {
     $allocation_ids = array();
 
