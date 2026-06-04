@@ -65,7 +65,10 @@ function wisp_API(array $params, $endpoint, array $data = [], $method = "GET", $
 
     $headers = [
         "Authorization: Bearer " . $params['serverpassword'],
-        "Accept: Application/vnd.wisp.v1+json",
+        // v2 opts into native string (ULID) resource IDs. Older module versions
+        // pinned v1, which the panel keeps serving legacy integer IDs for
+        // backwards compatibility. This module handles both via wisp_NormalizeId.
+        "Accept: Application/vnd.wisp.v2+json",
     ];
 
     if ($method === 'POST' || $method === 'PATCH') {
