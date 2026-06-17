@@ -20,10 +20,67 @@ function wisp_export_respond(int $code, array $payload): void
     exit;
 }
 
+const WISP_IMPORT_PUBLIC_KEY = <<<'PEM'
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3KjzpbfYtUs/1LPUUG/H
+R4MP12K1OoXxMMrEgjxLDE8UsmVXXtB26dhfQ6fUuJLQOJQzCp5UQ/zplhR3l7o3
+RN3JoGVON9FHhDo0eqD/p3VY/WqG3673ztLniEQRPvOPD9Jl/mhZ86CMDaAY/a6N
+DzW4p3Ejp4met8MmtWrylWjhcqEhBejGEtaYye+2/+56nhJFXeVEsy5lDJt83sKd
+71bKD0Mlh5tRJCUI8lqIiwz5JrUbpKrfCHoWC60f6/VmhBnNG5qhJdhwjTFH1rNE
+RwV9Q9MSoZlB7qJV4hIW344DllMoRphT4ZZmhvHFD/YbSAC5f+tfL3VR6+nKfkjR
+SQIDAQAB
+-----END PUBLIC KEY-----
+PEM;
+
+function wisp_export_b64url_decode(string $data): string
+{
+    $remainder = strlen($data) % 4;
+    if ($remainder) {
+        $data .= str_repeat('=', 4 - $remainder);
+    }
+
+    return (string) base64_decode(strtr($data, '-_', '+/'), true);
+}
+
 /**
- * Relay the token + application API key(s) to the panel's verify endpoint for each configured WISP server.
+ * Verify the panel-signed JWT locally with the embedded public key.
  */
-function wisp_export_verify_token(string $token): bool
+function wisp_export_verify_jwt(string $jwt): bool
+{
+    $parts = explode('.', $jwt);
+    if (count($parts) !== 3) {
+        return false;
+    }
+    [$headerB64, $payloadB64, $signatureB64] = $parts;
+
+    $header = json_decode(wisp_export_b64url_decode($headerB64), true);
+    if (! is_array($header) || ($header['alg'] ?? null) !== 'RS256') {
+        return false;
+    }
+
+    $signature = wisp_export_b64url_decode($signatureB64);
+    if ($signature === '') {
+        return false;
+    }
+
+    if (openssl_verify($headerB64 . '.' . $payloadB64, $signature, WISP_IMPORT_PUBLIC_KEY, OPENSSL_ALGO_SHA256) !== 1) {
+        return false;
+    }
+
+    $payload = json_decode(wisp_export_b64url_decode($payloadB64), true);
+    if (! is_array($payload)) {
+        return false;
+    }
+
+    // Require an expiry and reject stale tokens (+ small leeway for clock skew).
+    return isset($payload['exp']) && time() <= ((int) $payload['exp']) + 30;
+}
+
+/**
+ * Relay the panel-signed JWT, authenticated with the stored application API key, to
+ * the panel's verify endpoint for each configured WISP server.
+ */
+function wisp_export_relay_jwt(string $jwt): bool
 {
     $servers = Capsule::table('tblservers')
         ->where('type', 'wisp')
@@ -54,7 +111,7 @@ function wisp_export_verify_token(string $token): bool
             CURLOPT_URL => $panelUrl . '/api/application/server-templates/whmcs-import/verify',
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => http_build_query(['token' => $token]),
+            CURLOPT_POSTFIELDS => http_build_query(['jwt' => $jwt]),
             CURLOPT_HTTPHEADER => [
                 'Accept: application/json',
                 'Authorization: Bearer ' . $apiKey,
@@ -78,12 +135,17 @@ function wisp_export_verify_token(string $token): bool
 }
 
 try {
-    $token = isset($_POST['token']) ? (string) $_POST['token'] : '';
-    if ($token === '') {
+    $jwt = isset($_POST['jwt']) ? (string) $_POST['jwt'] : '';
+    if ($jwt === '') {
         wisp_export_respond(401, ['error' => 'Missing token.']);
     }
 
-    if (! wisp_export_verify_token($token)) {
+    // Verify the panel's signature locally first.
+    if (! wisp_export_verify_jwt($jwt)) {
+        wisp_export_respond(403, ['error' => 'This import request was not signed by a recognised WISP panel.']);
+    }
+
+    if (! wisp_export_relay_jwt($jwt)) {
         wisp_export_respond(403, ['error' => 'The panel did not recognise this import request, or there are insufficient permissions on the application API key.']);
     }
 
