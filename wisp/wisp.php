@@ -134,6 +134,12 @@ function wisp_MetaData()
     ];
 }
 
+/**
+ * # Important
+ * 
+ * Any changes to this mapping MUST be reflected in `app/Services/ServerTemplates/Whmcs/WhmcsProductMapper.php`
+ * in the panel to ensure normal operation of the "Import from WHMCS" feature of Server Templates.
+ */
 function wisp_ConfigOptions()
 {
     return [
@@ -262,6 +268,12 @@ function wisp_ConfigOptions()
         "backup_count_limit" => [
             "FriendlyName" => "Backup Count Limit",
             "Description" => "Amount of backups the server can create (optional)",
+            "Type" => "text",
+            "Size" => 25,
+        ],
+        "server_template_id" => [
+            "FriendlyName" => "Server Template Identifier",
+            "Description" => "Identifier of the server template this product maps to. Links provisioned servers to the template and defines the identifier used by the \"Import from WHMCS\" button of the Server Templates feature (optional)",
             "Type" => "text",
             "Size" => 25,
         ],
@@ -412,6 +424,7 @@ function wisp_CreateAccount(array $params)
         $force_outgoing_ip = wisp_GetOption($params, 'force_outgoing_ip') ? true : false;
         $backup_megabytes_limit = wisp_GetOption($params, 'backup_megabytes_limit');
         $backup_count_limit = wisp_GetOption($params, 'backup_count_limit');
+        $server_template = wisp_GetOption($params, 'server_template_id');
         $serverData = [
             'name' => $name,
             'user' => wisp_NormalizeId($userId),
@@ -444,6 +457,9 @@ function wisp_CreateAccount(array $params)
             'external_id' => (string) $params['serviceid'],
         ];
         if (isset($pack_id)) $serverData['pack'] = wisp_NormalizeId($pack_id);
+
+        // Link the provisioned server to a Wisp server template.
+        if (isset($server_template) && $server_template !== '') $serverData['server_template'] = $server_template;
 
         // Check if additional ports have been set
         if (isset($additional_ports) && $additional_ports != '') {
