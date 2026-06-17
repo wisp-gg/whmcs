@@ -729,6 +729,13 @@ function wisp_ChangePackage(array $params)
 
         $updateResult = wisp_API($params, 'servers/' . $serverId . '/startup', $updateData, 'PATCH');
         if ($updateResult['status_code'] !== 200) throw new Exception('Failed to update startup of the server, received error code: ' . $updateResult['status_code'] . '. Enable module debug log for more info.');
+
+        // Keep the panel's attached server template in step with the new product.
+        $server_template = wisp_GetOption($params, 'server_template_id');
+        $templateResult = wisp_API($params, 'servers/' . $serverId . '/server-template', [
+            'server_template' => ($server_template !== null && $server_template !== '') ? $server_template : null,
+        ], 'PATCH');
+        if ($templateResult['status_code'] !== 200) logModuleCall("WISP-WHMCS", "Change Package - server template sync failed", $server_template, print_r($templateResult, true));
     } catch (Exception $err) {
         return $err->getMessage();
     }
