@@ -163,6 +163,20 @@ try {
         ->where($templateColumn, '!=', '')
         ->get();
 
+    // Collect the live (active/suspended) service ids per product in a single
+    // query. The panel resolves these to its own servers via external_id and
+    // offers to attach them to the product's server template.
+    $servicesByProduct = [];
+    if ($products->isNotEmpty()) {
+        $services = Capsule::table('tblhosting')
+            ->whereIn('packageid', $products->pluck('id')->all())
+            ->whereIn('domainstatus', ['Active', 'Suspended'])
+            ->get(['id', 'packageid']);
+        foreach ($services as $service) {
+            $servicesByProduct[(int) $service->packageid][] = (string) $service->id;
+        }
+    }
+
     $rows = [];
     foreach ($products as $product) {
         $options = [];
@@ -175,6 +189,7 @@ try {
             'pid' => (int) $product->id,
             'name' => $product->name,
             'options' => $options,
+            'services' => $servicesByProduct[(int) $product->id] ?? [],
         ];
     }
 
