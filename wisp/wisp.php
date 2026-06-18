@@ -403,13 +403,11 @@ function wisp_CreateAccount(array $params)
         foreach ($eggData['attributes']['relationships']['variables']['data'] as $key => $val) {
             $attr = $val['attributes'];
             $var = $attr['env_variable'];
-            $default = $attr['default_value'];
             $friendlyName = wisp_GetOption($params, $attr['name']);
             $envName = wisp_GetOption($params, $attr['env_variable']);
 
             if (isset($friendlyName)) $environment[$var] = $friendlyName;
             elseif (isset($envName)) $environment[$var] = $envName;
-            else $environment[$var] = $default;
         }
 
         // Fetch given server parameters
@@ -693,7 +691,6 @@ function wisp_ChangePackage(array $params)
             if (isset($friendlyName)) $environment[$var] = $friendlyName;
             elseif (isset($envName)) $environment[$var] = $envName;
             elseif (isset($serverData['attributes']['container']['environment'][$var])) $environment[$var] = $serverData['attributes']['container']['environment'][$var];
-            elseif (isset($attr['default_value'])) $environment[$var] = $attr['default_value'];
         }
 
         $image = wisp_GetOption($params, 'image', $serverData['attributes']['container']['image']);
