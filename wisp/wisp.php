@@ -691,6 +691,7 @@ function wisp_ChangePackage(array $params)
             if (isset($friendlyName)) $environment[$var] = $friendlyName;
             elseif (isset($envName)) $environment[$var] = $envName;
             elseif (isset($serverData['attributes']['container']['environment'][$var])) $environment[$var] = $serverData['attributes']['container']['environment'][$var];
+            elseif (isset($attr['default_value'])) $environment[$var] = $attr['default_value'];
         }
 
         $image = wisp_GetOption($params, 'image', $serverData['attributes']['container']['image']);
@@ -711,8 +712,10 @@ function wisp_ChangePackage(array $params)
         //    new product, so the build update in step 3 can inherit any blank
         //    fields from it (and detach when the product carries no template).
         $server_template = wisp_GetOption($params, 'server_template_id');
+        $hasTemplate = ($server_template !== null && $server_template !== '');
         $templateResult = wisp_API($params, 'servers/' . $serverId . '/server-template', [
-            'server_template' => ($server_template !== null && $server_template !== '') ? $server_template : null,
+            'server_template' => $hasTemplate ? $server_template : null,
+            'resync' => $hasTemplate,
         ], 'PATCH');
         if ($templateResult['status_code'] !== 200) logModuleCall("WISP-WHMCS", "Change Package - server template sync failed", $server_template, print_r($templateResult, true));
 
