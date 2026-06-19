@@ -159,7 +159,6 @@ try {
 
     $products = Capsule::table('tblproducts')
         ->where('servertype', 'wisp')
-        ->where('hidden', 0)
         ->where($templateColumn, '!=', '')
         ->get();
 
