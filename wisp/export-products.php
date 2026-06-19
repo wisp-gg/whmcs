@@ -134,6 +134,50 @@ function wisp_export_relay_jwt(string $jwt): bool
     return false;
 }
 
+function wisp_export_friendly_key_map(): array
+{
+    $map = ['allocations' => 'allocations'];
+
+    foreach (wisp_ConfigOptions() as $key => $def) {
+        $map[strtolower(trim($key))] = $key;
+
+        if (isset($def['FriendlyName'])) {
+            $map[strtolower(trim($def['FriendlyName']))] = $key;
+        }
+    }
+
+    return $map;
+}
+
+function wisp_export_resolve_configurable(array $optionNames, array $friendlyToKey): array
+{
+    $fields = [];
+    $variables = [];
+
+    foreach ($optionNames as $name) {
+        $identifier = trim((string) $name);
+        if (strpos($identifier, '|') !== false) {
+            $identifier = trim(explode('|', $identifier, 2)[0]);
+        }
+
+        if ($identifier === '') {
+            continue;
+        }
+
+        $key = $friendlyToKey[strtolower($identifier)] ?? null;
+        if ($key !== null) {
+            $fields[] = $key;
+        } else {
+            $variables[] = $identifier;
+        }
+    }
+
+    return [
+        'fields' => array_values(array_unique($fields)),
+        'variables' => array_values(array_unique($variables)),
+    ];
+}
+
 try {
     $jwt = isset($_POST['jwt']) ? (string) $_POST['jwt'] : '';
     if ($jwt === '') {
@@ -176,6 +220,19 @@ try {
         }
     }
 
+    $configOptionsByProduct = [];
+    if ($products->isNotEmpty()) {
+        $configOptions = Capsule::table('tblproductconfiglinks as pcl')
+            ->join('tblproductconfigoptions as pco', 'pco.gid', '=', 'pcl.gid')
+            ->whereIn('pcl.pid', $products->pluck('id')->all())
+            ->get(['pcl.pid as pid', 'pco.optionname as optionname']);
+        foreach ($configOptions as $configOption) {
+            $configOptionsByProduct[(int) $configOption->pid][] = (string) $configOption->optionname;
+        }
+    }
+
+    $friendlyToKey = wisp_export_friendly_key_map();
+
     $rows = [];
     foreach ($products as $product) {
         $options = [];
@@ -184,10 +241,17 @@ try {
             $options[$key] = isset($product->{$column}) ? $product->{$column} : '';
         }
 
+        $configurable = wisp_export_resolve_configurable(
+            $configOptionsByProduct[(int) $product->id] ?? [],
+            $friendlyToKey,
+        );
+
         $rows[] = [
             'pid' => (int) $product->id,
             'name' => $product->name,
             'options' => $options,
+            'configurable_fields' => $configurable['fields'],
+            'configurable_variables' => $configurable['variables'],
             'services' => $servicesByProduct[(int) $product->id] ?? [],
         ];
     }
