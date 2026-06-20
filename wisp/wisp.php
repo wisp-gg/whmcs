@@ -28,6 +28,10 @@ if (!defined("WHMCS")) {
     die("This file cannot be accessed directly");
 }
 
+if (!defined("WISP_MODULE_VERSION")) {
+    define("WISP_MODULE_VERSION", "1.0.0");
+}
+
 use Illuminate\Database\Capsule\Manager as Capsule;
 
 function wisp_GetHostname(array $params)
@@ -69,6 +73,7 @@ function wisp_API(array $params, $endpoint, array $data = [], $method = "GET", $
         // pinned v1, which the panel keeps serving legacy integer IDs for
         // backwards compatibility. This module handles both via wisp_NormalizeId.
         "Accept: Application/vnd.wisp.v2+json",
+        "X-Wisp-Module-Version: " . WISP_MODULE_VERSION,
     ];
 
     if ($method === 'POST' || $method === 'PATCH') {
@@ -125,6 +130,11 @@ function wisp_NormalizeId($id)
     return $id;
 }
 
+function wisp_IntOrNull($value)
+{
+    return ($value !== '' && $value !== null) ? (int) $value : null;
+}
+
 function wisp_MetaData()
 {
     return [
@@ -134,6 +144,12 @@ function wisp_MetaData()
     ];
 }
 
+/**
+ * # Important
+ * 
+ * Any changes to this mapping MUST be reflected in `app/Services/ServerTemplates/Whmcs/WhmcsProductMapper.php`
+ * in the panel to ensure normal operation of the "Import from WHMCS" feature of Server Templates.
+ */
 function wisp_ConfigOptions()
 {
     return [
@@ -265,6 +281,12 @@ function wisp_ConfigOptions()
             "Type" => "text",
             "Size" => 25,
         ],
+        "server_template_id" => [
+            "FriendlyName" => "Server Template Identifier",
+            "Description" => "Identifier of the server template this product maps to. Links provisioned servers to the template and defines the identifier used by the \"Import from WHMCS\" button of the Server Templates feature. Explicitly setting values in your product will override the template; blank out other fields to inherit from template instead (optional)",
+            "Type" => "text",
+            "Size" => 25,
+        ],
     ];
 }
 
@@ -381,13 +403,11 @@ function wisp_CreateAccount(array $params)
         foreach ($eggData['attributes']['relationships']['variables']['data'] as $key => $val) {
             $attr = $val['attributes'];
             $var = $attr['env_variable'];
-            $default = $attr['default_value'];
             $friendlyName = wisp_GetOption($params, $attr['name']);
             $envName = wisp_GetOption($params, $attr['env_variable']);
 
             if (isset($friendlyName)) $environment[$var] = $friendlyName;
             elseif (isset($envName)) $environment[$var] = $envName;
-            else $environment[$var] = $default;
         }
 
         // Fetch given server parameters
@@ -412,6 +432,7 @@ function wisp_CreateAccount(array $params)
         $force_outgoing_ip = wisp_GetOption($params, 'force_outgoing_ip') ? true : false;
         $backup_megabytes_limit = wisp_GetOption($params, 'backup_megabytes_limit');
         $backup_count_limit = wisp_GetOption($params, 'backup_count_limit');
+        $server_template = wisp_GetOption($params, 'server_template_id');
         $serverData = [
             'name' => $name,
             'user' => wisp_NormalizeId($userId),
@@ -422,17 +443,17 @@ function wisp_CreateAccount(array $params)
             'oom_disabled' => $oom_disabled,
             'force_outgoing_ip' => $force_outgoing_ip,
             'limits' => [
-                'memory' => (int) $memory,
-                'swap' => (int) $swap,
-                'io' => (int) $io,
-                'cpu' => (int) $cpu,
-                'disk' => (int) $disk,
+                'memory' => wisp_IntOrNull($memory),
+                'swap' => wisp_IntOrNull($swap),
+                'io' => wisp_IntOrNull($io),
+                'cpu' => wisp_IntOrNull($cpu),
+                'disk' => wisp_IntOrNull($disk),
             ],
             'feature_limits' => [
-                'databases' => $databases ? (int) $databases : null,
-                'allocations' => (int) $allocations,
-                'backup_megabytes_limit' => (int) $backup_megabytes_limit,
-                'backup_count_limit' => $backup_count_limit !== '' && $backup_count_limit !== null ? (int) $backup_count_limit : null,
+                'databases' => wisp_IntOrNull($databases),
+                'allocations' => wisp_IntOrNull($allocations),
+                'backup_megabytes_limit' => wisp_IntOrNull($backup_megabytes_limit),
+                'backup_count_limit' => wisp_IntOrNull($backup_count_limit),
             ],
             'deploy' => [
                 'locations' => [wisp_NormalizeId($location_id)],
@@ -444,6 +465,9 @@ function wisp_CreateAccount(array $params)
             'external_id' => (string) $params['serviceid'],
         ];
         if (isset($pack_id)) $serverData['pack'] = wisp_NormalizeId($pack_id);
+
+        // Link the provisioned server to a Wisp server template.
+        if (isset($server_template) && $server_template !== '') $serverData['server_template'] = $server_template;
 
         // Check if additional ports have been set
         if (isset($additional_ports) && $additional_ports != '') {
@@ -647,40 +671,10 @@ function wisp_ChangePackage(array $params)
         if ($serverData['status_code'] === 404 || !isset($serverData['attributes']['id'])) throw new Exception('Failed to change package of server because it doesn\'t exist.');
         $serverId = $serverData['attributes']['id'];
 
-        $memory = wisp_GetOption($params, 'memory');
-        $swap = wisp_GetOption($params, 'swap');
-        $io = wisp_GetOption($params, 'io');
-        $cpu = wisp_GetOption($params, 'cpu');
-        $disk = wisp_GetOption($params, 'disk');
-        $databases = wisp_GetOption($params, 'databases');
-        $allocations = wisp_GetOption($params, 'allocations');
-        $oom_disabled = wisp_GetOption($params, 'oom_disabled') == 'yes';
-        $force_outgoing_ip = wisp_GetOption($params, 'force_outgoing_ip') ? true : false;
-        $backup_megabytes_limit = wisp_GetOption($params, 'backup_megabytes_limit');
-        $backup_count_limit = wisp_GetOption($params, 'backup_count_limit');
-        $updateData = [
-            'allocation' => $serverData['attributes']['allocation'],
-            'memory' => (int) $memory,
-            'swap' => (int) $swap,
-            'io' => (int) $io,
-            'cpu' => (int) $cpu,
-            'disk' => (int) $disk,
-            'oom_disabled' => $oom_disabled,
-            'force_outgoing_ip' => $force_outgoing_ip,
-            'feature_limits' => [
-                'databases' => (int) $databases,
-                'allocations' => (int) $allocations,
-                'backup_megabytes_limit' => (int) $backup_megabytes_limit,
-                'backup_count_limit' => $backup_count_limit !== '' && $backup_count_limit !== null ? (int) $backup_count_limit : null,
-            ],
-        ];
-
-        // log to the module log
-        logModuleCall("WISP-WHMCS", "Change Package", print_r($updateData, true), "");
-
-        $updateResult = wisp_API($params, 'servers/' . $serverId . '/build', $updateData, 'PATCH');
-        if ($updateResult['status_code'] !== 200) throw new Exception('Failed to update build of the server, received error code: ' . $updateResult['status_code'] . '. Enable module debug log for more info.');
-
+        // 1. Push the new product's startup/egg first. A package change can swap
+        //    the egg, and the template relink in step 2 only attaches when the
+        //    server's egg already matches the template's -- so the egg must land
+        //    before we relink.
         $nestId = wisp_GetOption($params, 'nest_id');
         $eggId = wisp_GetOption($params, 'egg_id');
         $pack_id = wisp_GetOption($params, 'pack_id');
@@ -713,6 +707,54 @@ function wisp_ChangePackage(array $params)
 
         $updateResult = wisp_API($params, 'servers/' . $serverId . '/startup', $updateData, 'PATCH');
         if ($updateResult['status_code'] !== 200) throw new Exception('Failed to update startup of the server, received error code: ' . $updateResult['status_code'] . '. Enable module debug log for more info.');
+
+        // 2. Relink the panel's attached template now that the egg matches the
+        //    new product, so the build update in step 3 can inherit any blank
+        //    fields from it (and detach when the product carries no template).
+        $server_template = wisp_GetOption($params, 'server_template_id');
+        $hasTemplate = ($server_template !== null && $server_template !== '');
+        $templateResult = wisp_API($params, 'servers/' . $serverId . '/server-template', [
+            'server_template' => $hasTemplate ? $server_template : null,
+            'resync' => $hasTemplate,
+        ], 'PATCH');
+        if ($templateResult['status_code'] !== 200) logModuleCall("WISP-WHMCS", "Change Package - server template sync failed", $server_template, print_r($templateResult, true));
+
+        // 3. Push the build/limits last. A blank limit is sent as null so the
+        //    panel inherits it from the now-attached template, or restores the
+        //    legacy 0 default when the product has no template.
+        $memory = wisp_GetOption($params, 'memory');
+        $swap = wisp_GetOption($params, 'swap');
+        $io = wisp_GetOption($params, 'io');
+        $cpu = wisp_GetOption($params, 'cpu');
+        $disk = wisp_GetOption($params, 'disk');
+        $databases = wisp_GetOption($params, 'databases');
+        $allocations = wisp_GetOption($params, 'allocations');
+        $oom_disabled = wisp_GetOption($params, 'oom_disabled') == 'yes';
+        $force_outgoing_ip = wisp_GetOption($params, 'force_outgoing_ip') ? true : false;
+        $backup_megabytes_limit = wisp_GetOption($params, 'backup_megabytes_limit');
+        $backup_count_limit = wisp_GetOption($params, 'backup_count_limit');
+        $updateData = [
+            'allocation' => $serverData['attributes']['allocation'],
+            'memory' => wisp_IntOrNull($memory),
+            'swap' => wisp_IntOrNull($swap),
+            'io' => wisp_IntOrNull($io),
+            'cpu' => wisp_IntOrNull($cpu),
+            'disk' => wisp_IntOrNull($disk),
+            'oom_disabled' => $oom_disabled,
+            'force_outgoing_ip' => $force_outgoing_ip,
+            'feature_limits' => [
+                'databases' => wisp_IntOrNull($databases),
+                'allocations' => wisp_IntOrNull($allocations),
+                'backup_megabytes_limit' => wisp_IntOrNull($backup_megabytes_limit),
+                'backup_count_limit' => wisp_IntOrNull($backup_count_limit),
+            ],
+        ];
+
+        // log to the module log
+        logModuleCall("WISP-WHMCS", "Change Package", print_r($updateData, true), "");
+
+        $updateResult = wisp_API($params, 'servers/' . $serverId . '/build', $updateData, 'PATCH');
+        if ($updateResult['status_code'] !== 200) throw new Exception('Failed to update build of the server, received error code: ' . $updateResult['status_code'] . '. Enable module debug log for more info.');
     } catch (Exception $err) {
         return $err->getMessage();
     }
