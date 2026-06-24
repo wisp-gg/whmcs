@@ -5,6 +5,11 @@ WHMCS Module for the [WISP Panel](https://wisp.gg/).
 ## Configuration support
 Please use the [WISP Discord](https://wisp.gg/discord) for configuration related support instead of GitHub issues.
 
+## Deployment Tags (recommended)
+Set the **Deployment Tags** product field to one or more comma-separated tag slugs, e.g. `chicago,premium`. Servers deploy to nodes that carry **all** of the listed tags (AND). This is the replacement for the **Location ID** field — when Deployment Tags is set it takes precedence.
+
+> **Deprecation notice:** The **Location ID** and **Nest ID** fields are deprecated. Location- and nest-based deployment will be removed in a future WISP Panel release; migrate your products to **Deployment Tags**. Location ID still works for now, but the module writes a `DEPRECATION` entry to the module debug log on each deployment that relies on it (see *How to enable module debug log*).
+
 ## Installation
 [Video Tutorial](https://www.youtube.com/watch?v=wURpRD9vfj4)
 

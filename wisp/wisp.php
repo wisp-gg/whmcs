@@ -161,9 +161,15 @@ function wisp_ConfigOptions()
             "Type" => "text",
             "Size" => 10,
         ],
+        "tags" => [
+            "FriendlyName" => "Deployment Tags",
+            "Description" => "Comma-separated tag slugs to deploy to, e.g. \"chicago,premium\". Nodes must carry ALL listed tags. Recommended; takes precedence over Location ID when set.",
+            "Type" => "text",
+            "Size" => 25,
+        ],
         "location_id" => [
-            "FriendlyName" => "Location ID",
-            "Description" => "ID of the Location to automatically deploy to.",
+            "FriendlyName" => "Location ID (deprecated)",
+            "Description" => "DEPRECATED - use Deployment Tags instead. ID of the Location to automatically deploy to. Location support will be removed in a future panel release.",
             "Type" => "text",
             "Size" => 10,
         ],
@@ -173,8 +179,8 @@ function wisp_ConfigOptions()
             "Type" => "yesno",
         ],
         "nest_id" => [
-            "FriendlyName" => "Nest ID",
-            "Description" => "ID of the Nest for the server to use.",
+            "FriendlyName" => "Nest ID (deprecated)",
+            "Description" => "DEPRECATED - nests are being removed; an Egg ID is sufficient. ID of the Nest for the server to use. Nest support will be removed in a future panel release.",
             "Type" => "text",
             "Size" => 10,
         ],
@@ -412,6 +418,18 @@ function wisp_CreateAccount(array $params)
         $force_outgoing_ip = wisp_GetOption($params, 'force_outgoing_ip') ? true : false;
         $backup_megabytes_limit = wisp_GetOption($params, 'backup_megabytes_limit');
         $backup_count_limit = wisp_GetOption($params, 'backup_count_limit');
+
+        // Prefer tag-based deployment; fall back to the (deprecated) Location ID.
+        $deploy_tags = wisp_GetOption($params, 'tags');
+        $deploy_tag_list = (isset($deploy_tags) && trim($deploy_tags) !== '') ? array_values(array_filter(array_map('trim', explode(',', $deploy_tags)))) : array();
+        $use_deploy_tags = count($deploy_tag_list) > 0;
+        if ($use_deploy_tags) {
+            $deploy_target = array('tags' => $deploy_tag_list);
+        } else {
+            logModuleCall("WISP-WHMCS", "DEPRECATION", "Deploying by Location ID (" . $location_id . "). Location-based deployment is deprecated - configure Deployment Tags instead. Location/nest support will be removed in a future panel release.", "");
+            $deploy_target = array('locations' => array(wisp_NormalizeId($location_id)));
+        }
+
         $serverData = [
             'name' => $name,
             'user' => wisp_NormalizeId($userId),
@@ -434,11 +452,10 @@ function wisp_CreateAccount(array $params)
                 'backup_megabytes_limit' => (int) $backup_megabytes_limit,
                 'backup_count_limit' => $backup_count_limit !== '' && $backup_count_limit !== null ? (int) $backup_count_limit : null,
             ],
-            'deploy' => [
-                'locations' => [wisp_NormalizeId($location_id)],
+            'deploy' => array_merge($deploy_target, [
                 'dedicated_ip' => $dedicated_ip,
                 'port_range' => $port_range,
-            ],
+            ]),
             'environment' => $environment,
             'start_on_completion' => true,
             'external_id' => (string) $params['serviceid'],
@@ -452,8 +469,16 @@ function wisp_CreateAccount(array $params)
             // Get the list of additional ports to add
             //$additional_port_list = explode(",", $additional_ports);
             $additional_port_list = $additional_ports;
-            // Get the server nodes for the specified location_id
-            $nodeResponse = wisp_API($params, "locations/$location_id/eligible-nodes?cpu=$cpu&memory=$memory&disk=$disk");
+            // Get the candidate nodes by tag (preferred) or the deprecated location.
+            if ($use_deploy_tags) {
+                $tagParams = array();
+                foreach ($deploy_tag_list as $deploy_tag) {
+                    $tagParams[] = 'tags[]=' . urlencode($deploy_tag);
+                }
+                $nodeResponse = wisp_API($params, "tags/eligible-nodes?" . implode('&', $tagParams) . "&cpu=$cpu&memory=$memory&disk=$disk");
+            } else {
+                $nodeResponse = wisp_API($params, "locations/$location_id/eligible-nodes?cpu=$cpu&memory=$memory&disk=$disk");
+            }
             $nodes = $nodeResponse['data'];
 
             // Get the port allocations for each node at this location and check if there's space for the additional ports
