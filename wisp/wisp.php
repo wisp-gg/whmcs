@@ -135,6 +135,26 @@ function wisp_IntOrNull($value)
     return ($value !== '' && $value !== null) ? (int) $value : null;
 }
 
+/**
+ * WHMCS stores a ticked product yes/no option as "on"; a configurable option or
+ * custom field may carry "yes", "1" or "true" instead.
+ */
+function wisp_IsYes($value)
+{
+    return in_array(strtolower(trim((string) $value)), ['on', 'yes', '1', 'true'], true);
+}
+
+/**
+ * The panel's copy of the product's package, used to fill in what a linked
+ * product leaves blank. Null when the panel does not know the package.
+ */
+function wisp_GetServerTemplate(array $params, $identifier)
+{
+    $result = wisp_API($params, 'server-templates/' . rawurlencode($identifier));
+
+    return $result['status_code'] === 200 ? $result['attributes'] : null;
+}
+
 function wisp_MetaData()
 {
     return [
@@ -394,8 +414,19 @@ function wisp_CreateAccount(array $params)
 
         // Get egg data
         $eggId = wisp_GetOption($params, 'egg_id');
+        $server_template = wisp_GetOption($params, 'server_template_id');
+        $hasTemplate = isset($server_template) && $server_template !== '';
 
-        $eggData = wisp_API($params, 'eggs/' . $eggId . '?include=variables');
+        // A product linked to a package may leave the egg blank so the panel uses
+        // the package's; the egg is still needed here to resolve its variables.
+        $variablesEggId = $eggId;
+        if (!isset($eggId) && $hasTemplate) {
+            $template = wisp_GetServerTemplate($params, $server_template);
+            if (!isset($template['egg'])) throw new Exception('The product has no Egg ID, and its package "' . $server_template . '" has no egg or was not found on the panel.');
+            $variablesEggId = $template['egg'];
+        }
+
+        $eggData = wisp_API($params, 'eggs/' . $variablesEggId . '?include=variables');
         if ($eggData['status_code'] !== 200) throw new Exception('Failed to get egg data, received error code: ' . $eggData['status_code'] . '. Enable module debug log for more info.');
 
         $environment = [];
@@ -431,8 +462,17 @@ function wisp_CreateAccount(array $params)
         $force_outgoing_ip = wisp_GetOption($params, 'force_outgoing_ip') ? true : false;
         $backup_megabytes_limit = wisp_GetOption($params, 'backup_megabytes_limit');
         $backup_count_limit = wisp_GetOption($params, 'backup_count_limit');
-        $server_template = wisp_GetOption($params, 'server_template_id');
         $tags = wisp_GetOption($params, 'tags');
+
+        // With a package, blank values are sent as null so the panel fills them
+        // from the package (image/startup fall back to the egg there), and an
+        // unticked box inherits rather than forcing the setting off.
+        if ($hasTemplate) {
+            $image = wisp_GetOption($params, 'image');
+            $startup = wisp_GetOption($params, 'startup');
+            $oom_disabled = wisp_IsYes(wisp_GetOption($params, 'oom_disabled')) ? true : null;
+            $force_outgoing_ip = wisp_IsYes(wisp_GetOption($params, 'force_outgoing_ip')) ? true : null;
+        }
         $serverData = [
             'name' => $name,
             'user' => wisp_NormalizeId($userId),
@@ -626,6 +666,16 @@ function wisp_ChangePackage(array $params)
         //    before we relink.
         $eggId = wisp_GetOption($params, 'egg_id');
         $pack_id = wisp_GetOption($params, 'pack_id');
+        $server_template = wisp_GetOption($params, 'server_template_id');
+        $hasTemplate = ($server_template !== null && $server_template !== '');
+        $template = $hasTemplate ? wisp_GetServerTemplate($params, $server_template) : null;
+
+        // A product linked to a package may leave the egg blank to use the package's.
+        if (!isset($eggId) && $hasTemplate) {
+            if (!isset($template['egg'])) throw new Exception('The product has no Egg ID, and its package "' . $server_template . '" has no egg or was not found on the panel.');
+            $eggId = $template['egg'];
+        }
+
         $eggData = wisp_API($params, 'eggs/' . $eggId . '?include=variables');
         if ($eggData['status_code'] !== 200) throw new Exception('Failed to get egg data, received error code: ' . $eggData['status_code'] . '. Enable module debug log for more info.');
 
@@ -644,6 +694,16 @@ function wisp_ChangePackage(array $params)
 
         $image = wisp_GetOption($params, 'image', $serverData['attributes']['container']['image']);
         $startup = wisp_GetOption($params, 'startup', $serverData['attributes']['container']['startup_command']);
+
+        // With a package, a blank image/startup takes the package's (or the egg's
+        // default) instead of keeping what the server ran before the change. The
+        // package's own value only applies while it is for this same egg.
+        if ($hasTemplate) {
+            $templateFitsEgg = isset($template['egg']) && (string) $template['egg'] === (string) $eggId;
+            $image = wisp_GetOption($params, 'image', ($templateFitsEgg ? ($template['docker_image'] ?? null) : null) ?? $eggData['attributes']['docker_image']);
+            $startup = wisp_GetOption($params, 'startup', ($templateFitsEgg ? ($template['startup'] ?? null) : null) ?? $eggData['attributes']['startup']);
+        }
+
         $updateData = [
             'environment' => $environment,
             'startup' => $startup,
@@ -659,8 +719,6 @@ function wisp_ChangePackage(array $params)
         // 2. Relink the panel's attached template now that the egg matches the
         //    new product, so the build update in step 3 can inherit any blank
         //    fields from it (and detach when the product carries no template).
-        $server_template = wisp_GetOption($params, 'server_template_id');
-        $hasTemplate = ($server_template !== null && $server_template !== '');
         $templateResult = wisp_API($params, 'servers/' . $serverId . '/server-template', [
             'server_template' => $hasTemplate ? $server_template : null,
             'resync' => $hasTemplate,
